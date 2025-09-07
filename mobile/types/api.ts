@@ -45,3 +45,61 @@ export interface ConversationEntry {
   response: RecipeGenerationResponse;
   createdAt: string;
 }
+
+// User preferences for LLM customization
+export interface UserPreferences {
+  id?: string;
+  userId?: string;
+  
+  // Unit preferences
+  units: 'metric' | 'imperial';
+  
+  // Grocery list categories (user can add/remove)
+  groceryCategories: string[];
+  
+  // Recipe preferences
+  defaultServings: number;
+  preferredDifficulty?: 'easy' | 'medium' | 'hard';
+  maxCookTime?: number; // in minutes
+  maxPrepTime?: number; // in minutes
+  
+  // Dietary restrictions/preferences
+  dietaryRestrictions: string[]; // ['vegetarian', 'gluten-free', 'dairy-free', etc.]
+  allergens: string[]; // ['nuts', 'shellfish', 'eggs', etc.]
+  dislikes: string[]; // ingredients user doesn't like
+  
+  // Free-text preferences
+  additionalPreferences: string;
+  
+  // UI preferences
+  themePreference: 'light' | 'dark' | 'system';
+  
+  updatedAt: string;
+  createdAt: string;
+}
+
+// Default grocery categories
+export const DEFAULT_GROCERY_CATEGORIES = [
+  'produce',
+  'butchery', 
+  'dry-goods',
+  'chilled',
+  'frozen',
+  'pantry',
+  'bakery',
+  'deli',
+  'beverages',
+  'spices'
+] as const;
+
+// Default user preferences
+export const DEFAULT_USER_PREFERENCES: Omit<UserPreferences, 'id' | 'userId' | 'updatedAt' | 'createdAt'> = {
+  units: 'metric',
+  groceryCategories: [...DEFAULT_GROCERY_CATEGORIES],
+  defaultServings: 4,
+  dietaryRestrictions: [],
+  allergens: [],
+  dislikes: [],
+  additionalPreferences: '',
+  themePreference: 'system',
+};

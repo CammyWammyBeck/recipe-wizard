@@ -1,17 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StatusBar, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, useAppTheme } from '../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function WelcomeScreen() {
   const { theme, isDark, setThemeMode, themeMode } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Redirect to prompt if user is authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      console.log('User is authenticated, redirecting to prompt');
+      router.replace('/prompt');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   const handleGetStarted = () => {
     router.push('/auth/signin');
+  };
+
+  const handleProfilePress = () => {
+    router.push('/profile');
   };
 
   const handleToggleTheme = () => {
@@ -21,6 +35,41 @@ export default function WelcomeScreen() {
       setThemeMode(themeMode === 'dark' ? 'light' : 'dark');
     }
   };
+
+  // Show loading screen while checking auth
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.colors.theme.background,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <MaterialCommunityIcons
+          name="chef-hat"
+          size={60}
+          color={theme.colors.wizard.primary}
+        />
+        <Text
+          style={{
+            fontSize: theme.typography.fontSize.bodyLarge,
+            color: theme.colors.theme.textSecondary,
+            fontFamily: theme.typography.fontFamily.body,
+            marginTop: theme.spacing.md,
+          }}
+        >
+          Loading...
+        </Text>
+      </View>
+    );
+  }
+
+  // Don't render welcome screen if authenticated (will redirect)
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
@@ -40,13 +89,33 @@ export default function WelcomeScreen() {
         <View
           style={{
             flexDirection: 'row',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             alignItems: 'center',
             paddingTop: insets.top + theme.spacing.md,
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: theme.spacing.lg,
           }}
         >
+          {/* Left side - Profile/Settings */}
+          <TouchableOpacity
+            onPress={handleProfilePress}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: theme.colors.theme.backgroundSecondary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MaterialCommunityIcons
+              name="account-cog"
+              size={24}
+              color={theme.colors.theme.textSecondary}
+            />
+          </TouchableOpacity>
+          
+          {/* Right side - Theme toggle */}
           <TouchableOpacity
             onPress={handleToggleTheme}
             style={{

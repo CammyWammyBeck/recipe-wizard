@@ -1,0 +1,379 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import Optional
+import logging
+
+from ..database import get_db
+from ..models import User, Recipe, RecipeIngredient, SavedRecipe
+from ..schemas import (
+    RecipeGenerationRequest, RecipeGenerationResponse,
+    RecipeAPI, IngredientAPI, SavedRecipeResponse, ErrorResponse
+)
+from ..utils.auth import get_current_user
+from ..services.llm_service import llm_service
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create router
+router = APIRouter(prefix="/api/recipes", tags=["recipes"])
+
+@router.post("/generate", response_model=RecipeGenerationResponse)
+async def generate_recipe(
+    request: RecipeGenerationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a new recipe based on user prompt using LLM.
+    
+    Uses user preferences to customize the recipe generation.
+    Returns structured recipe data with ingredients and instructions.
+    """
+    try:
+        logger.info(f"Generating recipe for user {current_user.email} with prompt: {request.prompt[:100]}...")
+        
+        # Generate recipe using LLM service with user context
+        generation_result = await llm_service.generate_recipe_with_fallback(request, current_user)
+        
+        # Convert to API response format
+        api_response = llm_service.convert_to_api_response(
+            generation_result['recipe_data'],
+            request.prompt,
+            generation_result
+        )
+        
+        return RecipeGenerationResponse(
+            id=api_response['id'],
+            recipe=RecipeAPI(**api_response['recipe']),
+            ingredients=[IngredientAPI(**ing) for ing in api_response['ingredients']],
+            generatedAt=api_response['generatedAt'],
+            userPrompt=api_response['userPrompt']
+        )
+        
+    except ConnectionError as e:
+        logger.error(f"LLM service connection error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except ValueError as e:
+        logger.error(f"Recipe generation validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Recipe generation failed: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during recipe generation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Recipe generation failed due to server error"
+        )
+
+@router.get("/history")
+async def get_recipe_history(
+    limit: int = 20,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get user's recipe generation history.
+    
+    Returns paginated list of previously generated recipes.
+    """
+    try:
+        recipes_query = db.query(Recipe).filter(
+            Recipe.created_by_id == current_user.id
+        ).order_by(Recipe.created_at.desc())
+        
+        total_count = recipes_query.count()
+        recipes = recipes_query.offset(offset).limit(limit).all()
+        
+        recipe_responses = []
+        for recipe in recipes:
+            # Get ingredients for this recipe
+            ingredients = db.query(RecipeIngredient).filter(
+                RecipeIngredient.recipe_id == recipe.id
+            ).all()
+            
+            recipe_responses.append({
+                "id": str(recipe.id),
+                "recipe": {
+                    "title": recipe.title,
+                    "description": recipe.description,
+                    "instructions": recipe.instructions,
+                    "prepTime": recipe.prep_time,
+                    "cookTime": recipe.cook_time,
+                    "servings": recipe.servings,
+                    "difficulty": recipe.difficulty,
+                    "tips": recipe.tips
+                },
+                "ingredients": [
+                    {
+                        "id": str(ing.id),
+                        "name": ing.name,
+                        "amount": ing.amount,
+                        "unit": ing.unit,
+                        "category": ing.category
+                    }
+                    for ing in ingredients
+                ],
+                "generatedAt": recipe.created_at.isoformat(),
+                "userPrompt": recipe.user_prompt
+            })
+        
+        return {
+            "success": True,
+            "recipes": recipe_responses,
+            "pagination": {
+                "total": total_count,
+                "offset": offset,
+                "limit": limit,
+                "hasMore": offset + limit < total_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching recipe history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch recipe history"
+        )
+
+@router.post("/save/{recipe_id}", response_model=SavedRecipeResponse)
+async def save_recipe(
+    recipe_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Save a recipe to user's favorites.
+    
+    Adds recipe to saved recipes collection for easy access.
+    """
+    try:
+        # Check if recipe exists
+        recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
+        if not recipe:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipe not found"
+            )
+        
+        # Check if already saved
+        existing_save = db.query(SavedRecipe).filter(
+            SavedRecipe.user_id == current_user.id,
+            SavedRecipe.recipe_id == recipe_id
+        ).first()
+        
+        if existing_save:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Recipe already saved"
+            )
+        
+        # Create saved recipe record
+        saved_recipe = SavedRecipe(
+            user_id=current_user.id,
+            recipe_id=recipe_id
+        )
+        
+        db.add(saved_recipe)
+        db.commit()
+        db.refresh(saved_recipe)
+        
+        logger.info(f"Recipe {recipe_id} saved by user {current_user.email}")
+        
+        return SavedRecipeResponse(
+            success=True,
+            message="Recipe saved successfully",
+            savedRecipeId=str(saved_recipe.id)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error saving recipe: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save recipe"
+        )
+
+@router.delete("/saved/{recipe_id}")
+async def unsave_recipe(
+    recipe_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove recipe from user's saved recipes.
+    """
+    try:
+        # Find saved recipe record
+        saved_recipe = db.query(SavedRecipe).filter(
+            SavedRecipe.user_id == current_user.id,
+            SavedRecipe.recipe_id == recipe_id
+        ).first()
+        
+        if not saved_recipe:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Saved recipe not found"
+            )
+        
+        # Delete saved recipe record
+        db.delete(saved_recipe)
+        db.commit()
+        
+        logger.info(f"Recipe {recipe_id} unsaved by user {current_user.email}")
+        
+        return {
+            "success": True,
+            "message": "Recipe removed from saved recipes"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error unsaving recipe: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to unsave recipe"
+        )
+
+@router.get("/saved")
+async def get_saved_recipes(
+    limit: int = 20,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get user's saved recipes.
+    
+    Returns paginated list of user's favorite recipes.
+    """
+    try:
+        # Join saved recipes with actual recipe data
+        saved_recipes_query = db.query(Recipe).join(
+            SavedRecipe, Recipe.id == SavedRecipe.recipe_id
+        ).filter(
+            SavedRecipe.user_id == current_user.id
+        ).order_by(SavedRecipe.saved_at.desc())
+        
+        total_count = saved_recipes_query.count()
+        recipes = saved_recipes_query.offset(offset).limit(limit).all()
+        
+        recipe_responses = []
+        for recipe in recipes:
+            # Get ingredients for this recipe
+            ingredients = db.query(RecipeIngredient).filter(
+                RecipeIngredient.recipe_id == recipe.id
+            ).all()
+            
+            recipe_responses.append({
+                "id": str(recipe.id),
+                "recipe": {
+                    "title": recipe.title,
+                    "description": recipe.description,
+                    "instructions": recipe.instructions,
+                    "prepTime": recipe.prep_time,
+                    "cookTime": recipe.cook_time,
+                    "servings": recipe.servings,
+                    "difficulty": recipe.difficulty,
+                    "tips": recipe.tips
+                },
+                "ingredients": [
+                    {
+                        "id": str(ing.id),
+                        "name": ing.name,
+                        "amount": ing.amount,
+                        "unit": ing.unit,
+                        "category": ing.category
+                    }
+                    for ing in ingredients
+                ],
+                "generatedAt": recipe.created_at.isoformat(),
+                "userPrompt": recipe.user_prompt,
+                "savedAt": db.query(SavedRecipe).filter(
+                    SavedRecipe.user_id == current_user.id,
+                    SavedRecipe.recipe_id == recipe.id
+                ).first().saved_at.isoformat()
+            })
+        
+        return {
+            "success": True,
+            "recipes": recipe_responses,
+            "pagination": {
+                "total": total_count,
+                "offset": offset,
+                "limit": limit,
+                "hasMore": offset + limit < total_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching saved recipes: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch saved recipes"
+        )
+
+async def _save_recipe_to_database(
+    db: Session, 
+    user: User, 
+    recipe_data: dict, 
+    user_prompt: str,
+    generation_metadata: dict
+) -> int:
+    """
+    Helper function to save generated recipe to database.
+    
+    Returns the ID of the saved recipe.
+    """
+    try:
+        # Create recipe record
+        recipe = Recipe(
+            title=recipe_data['recipe']['title'],
+            description=recipe_data['recipe'].get('description', ''),
+            instructions=recipe_data['recipe']['instructions'],
+            prep_time=recipe_data['recipe'].get('prepTime'),
+            cook_time=recipe_data['recipe'].get('cookTime'),
+            servings=recipe_data['recipe'].get('servings', 4),
+            difficulty=recipe_data['recipe'].get('difficulty', 'medium'),
+            tips=recipe_data['recipe'].get('tips', []),
+            user_prompt=user_prompt,
+            created_by_id=user.id,
+            generation_metadata={
+                'model': generation_metadata['model'],
+                'generation_time_ms': generation_metadata['generation_time_ms'],
+                'token_count': generation_metadata['token_count'],
+                'prompt_tokens': generation_metadata['prompt_tokens']
+            }
+        )
+        
+        db.add(recipe)
+        db.flush()  # Get the ID without committing
+        
+        # Create ingredient records
+        for ingredient_data in recipe_data['ingredients']:
+            ingredient = RecipeIngredient(
+                recipe_id=recipe.id,
+                name=ingredient_data['name'],
+                amount=str(ingredient_data['amount']),
+                unit=ingredient_data.get('unit', ''),
+                category=ingredient_data.get('category', 'pantry')
+            )
+            db.add(ingredient)
+        
+        db.commit()
+        
+        logger.info(f"Recipe '{recipe.title}' saved to database with ID {recipe.id}")
+        
+        return recipe.id
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error saving recipe to database: {e}")
+        raise ValueError(f"Failed to save recipe: {str(e)}")

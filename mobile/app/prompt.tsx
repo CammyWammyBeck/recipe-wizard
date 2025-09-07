@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, TextInput, useAppTheme } from '../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { apiService } from '../services/api';
 
 export default function PromptScreen() {
   const { theme, isDark, setThemeMode, themeMode } = useAppTheme();
@@ -12,33 +13,43 @@ export default function PromptScreen() {
   
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreateRecipe = async () => {
     if (!prompt.trim()) {
-      console.log('Please enter a recipe description');
+      setError('Please enter a recipe description');
       return;
     }
 
     setIsLoading(true);
+    setError(null);
     
     try {
-      // TODO: Replace with actual API call
-      // const recipeData = await apiService.generateRecipe({ prompt });
-      // router.push(`/recipe-result?recipeData=${encodeURIComponent(JSON.stringify(recipeData))}`);
-      
-      // For now, simulate loading and navigate to mock data
+      // Generate recipe using real API
       console.log('Creating recipe with prompt:', prompt);
+      const recipeData = await apiService.generateRecipe({ prompt });
       
-      setTimeout(() => {
-        setIsLoading(false);
-        // Navigate with the user prompt so the result screen knows what was requested
-        router.push(`/recipe-result?userPrompt=${encodeURIComponent(prompt)}`);
-      }, 2000);
+      setIsLoading(false);
+      
+      // Navigate with the actual recipe data
+      router.push({
+        pathname: '/recipe-result',
+        params: { 
+          userPrompt: prompt,
+          recipeData: JSON.stringify(recipeData),
+          timestamp: Date.now().toString()
+        }
+      });
     } catch (error) {
       console.error('Recipe generation error:', error);
       setIsLoading(false);
-      // TODO: Show error toast/alert to user
-      alert('Failed to generate recipe. Please try again.');
+      
+      // Show error on this screen, don't navigate
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Unable to generate recipe. Please check your connection and try again.');
+      }
     }
   };
 
@@ -51,7 +62,7 @@ export default function PromptScreen() {
   };
 
   const handleProfile = () => {
-    console.log('Profile pressed');
+    router.push('/profile');
   };
 
   const suggestionPrompts = [
@@ -302,7 +313,10 @@ export default function PromptScreen() {
               <TextInput
                 placeholder="Something creamy and comforting with chicken..."
                 value={prompt}
-                onChangeText={setPrompt}
+                onChangeText={(text) => {
+                  setPrompt(text);
+                  if (error) setError(null);
+                }}
                 multiline
                 style={{
                   minHeight: 140,
@@ -326,7 +340,7 @@ export default function PromptScreen() {
                 }}
               >
                 <MaterialCommunityIcons
-                  name="auto-fix-high"
+                  name="auto-fix"
                   size={24}
                   color={theme.colors.wizard.primary}
                   style={{
@@ -347,6 +361,40 @@ export default function PromptScreen() {
             </View>
           </View>
 
+          {/* Error Message */}
+          {error && (
+            <View
+              style={{
+                backgroundColor: theme.colors.theme.surface,
+                borderLeftWidth: 4,
+                borderLeftColor: '#ef4444',
+                borderRadius: theme.borderRadius.md,
+                padding: theme.spacing.lg,
+                marginBottom: theme.spacing.lg,
+                ...theme.shadows.surface,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons
+                  name="alert-circle"
+                  size={20}
+                  color="#ef4444"
+                  style={{ marginRight: theme.spacing.sm }}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: theme.typography.fontSize.bodyMedium,
+                    color: theme.colors.theme.text,
+                    fontFamily: theme.typography.fontFamily.body,
+                  }}
+                >
+                  {error}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Enhanced Create Button */}
           <View style={{ marginBottom: theme.spacing['3xl'] }}>
             <Button
@@ -355,7 +403,7 @@ export default function PromptScreen() {
               fullWidth
               onPress={handleCreateRecipe}
               loading={isLoading}
-              leftIcon="magic-staff"
+              leftIcon="auto-fix"
               disabled={!prompt.trim()}
               style={{
                 minHeight: 64,

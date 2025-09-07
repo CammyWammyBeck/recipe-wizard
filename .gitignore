@@ -32,6 +32,42 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
+
+# Backend specific
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/**/__pycache__/
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+backend/.env
+backend/logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST

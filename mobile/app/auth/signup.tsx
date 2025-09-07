@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, TextInput, useAppTheme } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function SignUpScreen() {
   const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { register, isLoading } = useAuth();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,31 +18,48 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSignUp = async () => {
     // Basic validation
-    if (password !== confirmPassword) {
-      console.log('Passwords do not match');
-      return;
-    }
-    
-    if (!name || !email || !password) {
-      console.log('Please fill in all fields');
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setError('Please fill in all required fields');
       return;
     }
 
-    setIsLoading(true);
-    
-    // TODO: Implement actual authentication
-    console.log('Sign up attempted with:', { name, email, password });
-    
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigate to prompt screen for now
-      router.push('/prompt');
-    }, 1000);
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    try {
+      setError('');
+      console.log('Sign up attempted with:', { name: name.trim(), email: email.trim() });
+      
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || undefined;
+      
+      await register({
+        email: email.trim(),
+        password,
+        firstName,
+        lastName,
+      });
+      
+      // Navigate to prompt screen after successful registration
+      console.log('✅ Registration successful, navigating to prompt');
+      router.replace('/prompt');
+      
+    } catch (error) {
+      console.error('❌ Registration failed:', error);
+      setError(error instanceof Error ? error.message : 'Registration failed. Please try again.');
+    }
   };
 
   const handleSignIn = () => {
@@ -212,11 +231,48 @@ export default function SignUpScreen() {
 
           {/* Form */}
           <View style={{ marginBottom: theme.spacing.xl }}>
+            {/* Error Message */}
+            {error && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.theme.surface,
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#ef4444',
+                  borderRadius: theme.borderRadius.md,
+                  padding: theme.spacing.lg,
+                  marginBottom: theme.spacing.lg,
+                  ...theme.shadows.surface,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons
+                    name="alert-circle"
+                    size={20}
+                    color="#ef4444"
+                    style={{ marginRight: theme.spacing.sm }}
+                  />
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: theme.typography.fontSize.bodyMedium,
+                      color: theme.colors.theme.text,
+                      fontFamily: theme.typography.fontFamily.body,
+                    }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             <TextInput
               label="Full Name"
               placeholder="Enter your full name"
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => {
+                setName(text);
+                if (error) setError('');
+              }}
               leftIcon="account-outline"
               autoCapitalize="words"
               containerStyle={{ marginBottom: theme.spacing.lg }}
@@ -226,7 +282,10 @@ export default function SignUpScreen() {
               label="Email"
               placeholder="Enter your email"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (error) setError('');
+              }}
               leftIcon="email-outline"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -238,7 +297,10 @@ export default function SignUpScreen() {
               label="Password"
               placeholder="Create a password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (error) setError('');
+              }}
               leftIcon="lock-outline"
               rightIcon={showPassword ? "eye-off" : "eye"}
               onRightIconPress={() => setShowPassword(!showPassword)}
@@ -251,7 +313,10 @@ export default function SignUpScreen() {
               label="Confirm Password"
               placeholder="Confirm your password"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (error) setError('');
+              }}
               leftIcon="lock-check-outline"
               rightIcon={showConfirmPassword ? "eye-off" : "eye"}
               onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}

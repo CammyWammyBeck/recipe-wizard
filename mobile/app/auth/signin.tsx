@@ -4,29 +4,39 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, TextInput, useAppTheme } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function SignInScreen() {
   const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { login, isLoading } = useAuth();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSignIn = async () => {
-    setIsLoading(true);
-    
-    // TODO: Implement actual authentication
-    console.log('Sign in attempted with:', { email, password });
-    
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigate to prompt screen for now
-      router.push('/prompt');
-    }, 1000);
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password');
+      return;
+    }
+
+    try {
+      setError('');
+      console.log('Sign in attempted with:', { email, password });
+      
+      await login({ email, password });
+      
+      // Navigate to prompt screen after successful login
+      console.log('✅ Login successful, navigating to prompt');
+      router.replace('/prompt');
+      
+    } catch (error) {
+      console.error('❌ Login failed:', error);
+      setError(error instanceof Error ? error.message : 'Login failed. Please try again.');
+    }
   };
 
   const handleSignUp = () => {
@@ -201,11 +211,48 @@ export default function SignInScreen() {
 
           {/* Form */}
           <View style={{ marginBottom: theme.spacing['2xl'] }}>
+            {/* Error Message */}
+            {error && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.theme.surface,
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#ef4444',
+                  borderRadius: theme.borderRadius.md,
+                  padding: theme.spacing.lg,
+                  marginBottom: theme.spacing.lg,
+                  ...theme.shadows.surface,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons
+                    name="alert-circle"
+                    size={20}
+                    color="#ef4444"
+                    style={{ marginRight: theme.spacing.sm }}
+                  />
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: theme.typography.fontSize.bodyMedium,
+                      color: theme.colors.theme.text,
+                      fontFamily: theme.typography.fontFamily.body,
+                    }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             <TextInput
               label="Email"
               placeholder="Enter your email"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (error) setError('');
+              }}
               leftIcon="email-outline"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -217,7 +264,10 @@ export default function SignInScreen() {
               label="Password"
               placeholder="Enter your password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (error) setError('');
+              }}
               leftIcon="lock-outline"
               rightIcon={showPassword ? "eye-off" : "eye"}
               onRightIconPress={() => setShowPassword(!showPassword)}

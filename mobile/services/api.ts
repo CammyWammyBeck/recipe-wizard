@@ -1,14 +1,54 @@
 // API service for handling recipe generation and data persistence
 import { RecipeGenerationRequest, RecipeGenerationResponse, SavedRecipeData, ConversationEntry } from '../types/api';
+import { PreferencesService } from './preferences';
+import * as SecureStore from 'expo-secure-store';
 
-// Configuration
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+// Configuration - Multiple fallback options for different environments
+const getApiBaseUrl = () => {
+  // Environment variable takes priority
+  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+    return process.env.EXPO_PUBLIC_API_BASE_URL;
+  }
+  
+  // Try different URLs based on platform
+  const possibleUrls = [
+    'http://192.168.20.7:8000',  // Your local network IP
+    'http://localhost:8000',     // Local development
+    'http://127.0.0.1:8000',     // Localhost alternative
+    'http://10.0.2.2:8000',      // Android emulator
+  ];
+  
+  return possibleUrls[0]; // Default to network IP
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class APIService {
-  private baseUrl: string;
+  public baseUrl: string;  // Made public so AuthService can access it
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
+    console.log('🔧 API Service initialized with URL:', this.baseUrl);
+  }
+
+  /**
+   * Get authentication headers for API requests
+   */
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const token = await SecureStore.getItemAsync('auth_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not retrieve auth token:', error);
+    }
+
+    return headers;
   }
 
   /**
@@ -16,15 +56,31 @@ class APIService {
    */
   async generateRecipe(request: RecipeGenerationRequest): Promise<RecipeGenerationResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/recipes/generate`, {
+      // Load user preferences to enhance the prompt
+      const preferences = await PreferencesService.loadPreferences();
+      const preferencesContext = PreferencesService.generatePromptContext(preferences);
+      
+      // Enhance the request with user preferences
+      const enhancedRequest = {
+        ...request,
+        prompt: request.prompt + preferencesContext,
+        preferences: preferences,
+      };
+
+      const url = `${this.baseUrl}/api/recipes/generate`;
+      console.log('🚀 Making API request to:', url);
+      console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
+      
+      const headers = await this.getAuthHeaders();
+      console.log('🔑 Using auth headers:', Object.keys(headers));
+      
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // TODO: Add authentication headers when implemented
-          // 'Authorization': `Bearer ${getAuthToken()}`,
-        },
-        body: JSON.stringify(request),
+        headers,
+        body: JSON.stringify(enhancedRequest),
       });
+      
+      console.log('📡 Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

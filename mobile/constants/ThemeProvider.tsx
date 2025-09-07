@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PreferencesService } from '../services/preferences';
 import { 
   BRAND_COLORS, 
   LIGHT_THEME, 
@@ -72,12 +73,20 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   useEffect(() => {
     const loadThemePreference = async () => {
       try {
-        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
-          setThemeModeState(savedTheme as ThemeMode);
-        }
+        // First try to load from preferences service (unified approach)
+        const themePreference = await PreferencesService.getThemePreference();
+        setThemeModeState(themePreference);
       } catch (error) {
         console.warn('Failed to load theme preference:', error);
+        // Fallback to old storage method
+        try {
+          const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+          if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
+            setThemeModeState(savedTheme as ThemeMode);
+          }
+        } catch (fallbackError) {
+          console.warn('Failed to load fallback theme preference:', fallbackError);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -89,10 +98,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Save theme preference when it changes
   const setThemeMode = async (mode: ThemeMode) => {
     try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+      // Use the preferences service for unified theme management
+      await PreferencesService.updateThemePreference(mode);
       setThemeModeState(mode);
     } catch (error) {
       console.warn('Failed to save theme preference:', error);
+      // Fallback to old storage method
+      try {
+        await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+        setThemeModeState(mode);
+      } catch (fallbackError) {
+        console.warn('Failed to save fallback theme preference:', fallbackError);
+      }
     }
   };
   
