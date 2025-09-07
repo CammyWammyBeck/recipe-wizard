@@ -45,11 +45,13 @@ class LLMService:
     def create_recipe_prompt(self, user_prompt: str, user_preferences: Optional[str] = None, user_categories: Optional[List[str]] = None) -> str:
         """Create a structured prompt for recipe generation"""
         
-        # Use user's custom categories or fall back to defaults
+        # Use user's custom categories - no hardcoded defaults
         if user_categories and len(user_categories) > 0:
             categories_list = ", ".join(user_categories)
         else:
-            categories_list = "produce, butchery, dry-goods, chilled, frozen, pantry, bakery, deli, beverages, spices"
+            # This should never happen as mobile app always sends categories,
+            # but if somehow no categories are provided, we cannot proceed
+            raise ValueError("No grocery categories provided. User preferences must include grocery categories for recipe generation.")
         
         system_prompt = f"""You are RecipeWizard, an expert chef and recipe creator. Generate creative, practical recipes based on user requests.
 
@@ -116,12 +118,28 @@ DIFFICULTY LEVELS: easy, medium, hard"""
         start_time = time.time()
         
         try:
-            # Get user preferences context if user is provided
+            # Get user preferences - prioritize request preferences over database
             user_preferences = None
             user_categories = None
-            if user:
+            
+            if request.preferences:
+                # Use preferences from mobile app request (most current)
+                logger.info("Using preferences from API request (mobile app)")
+                user_categories = request.preferences.get('groceryCategories', [])
+                
+                # Generate preference context from request data
+                user_preferences = self._generate_preference_context_from_request(request.preferences)
+                logger.info(f"Request categories: {user_categories}")
+                
+            elif user:
+                # Fallback to database user preferences
+                logger.info(f"Using database preferences for user {user.email}")
                 user_preferences = user.get_preference_context()
                 user_categories = user.grocery_categories
+                logger.info(f"Database categories: {user_categories}")
+                
+            else:
+                logger.info("No user or preferences provided - using minimal categories")
             
             # Create the prompt with user's categories
             prompt = self.create_recipe_prompt(
@@ -236,9 +254,14 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                 recipe['instructions'] = [recipe['instructions']]
             
             # Add default values for ingredients
+            default_category = valid_categories[0] if valid_categories and len(valid_categories) > 0 else None
             for ing in ingredients:
                 ing.setdefault('unit', '')
-                ing.setdefault('category', 'pantry')
+                if default_category:
+                    ing.setdefault('category', default_category)
+                elif 'category' not in ing:
+                    # This should not happen as LLM should provide category
+                    raise ValueError("Ingredient missing category and no valid categories provided")
             
             # Validate ingredient categories if user categories provided
             if valid_categories:
@@ -370,7 +393,10 @@ Provide the corrected JSON with all ingredient categories fixed to use ONLY the 
                     best_match = self._find_closest_category_match(current_category, valid_categories)
                     ing['category'] = best_match
                 else:
-                    ing['category'] = valid_categories[0] if valid_categories else 'pantry'
+                    # Use first valid category, should always exist at this point
+                    ing['category'] = valid_categories[0] if valid_categories else None
+                    if not ing['category']:
+                        raise ValueError("No valid categories available for ingredient category assignment")
             
             logger.info("Applied manual category fixes as fallback")
             return data
@@ -384,22 +410,28 @@ Provide the corrected JSON with all ingredient categories fixed to use ONLY the 
         mapping = {}
         valid_lower = [cat.lower() for cat in valid_categories]
         
-        # Common mappings
+        # Dynamic mappings based on what categories the user actually has
+        # Map common ingredient types to user's categories using keyword matching
         common_invalid = {
-            'dairy': 'chilled',
-            'meat': 'butchery', 
-            'vegetables': 'produce',
-            'fruits': 'produce',
-            'grains': 'dry-goods',
-            'seafood': 'butchery',
-            'herbs': 'spices',
-            'condiments': 'pantry'
+            'dairy': ['chilled', 'refrigerated', 'dairy', 'cold', 'fridge'],
+            'meat': ['butchery', 'meat', 'butcher', 'protein'], 
+            'vegetables': ['produce', 'vegetable', 'fresh', 'veg'],
+            'fruits': ['produce', 'fruit', 'fresh'],
+            'grains': ['dry-goods', 'grain', 'dry', 'pantry', 'staple'],
+            'seafood': ['butchery', 'seafood', 'fish', 'meat', 'protein'],
+            'herbs': ['spices', 'herb', 'seasoning', 'condiment'],
+            'condiments': ['pantry', 'condiment', 'sauce', 'seasoning']
         }
         
-        for invalid, preferred in common_invalid.items():
-            if preferred in valid_lower:
-                idx = valid_lower.index(preferred)
-                mapping[invalid] = valid_categories[idx]
+        for invalid, possible_matches in common_invalid.items():
+            # Find the best matching category from user's categories
+            for match_word in possible_matches:
+                for valid_cat in valid_categories:
+                    if match_word.lower() in valid_cat.lower():
+                        mapping[invalid] = valid_cat
+                        break
+                if invalid in mapping:
+                    break
         
         return mapping
     
@@ -441,6 +473,51 @@ Provide the corrected JSON with all ingredient categories fixed to use ONLY the 
         
         return []
     
+    def _generate_preference_context_from_request(self, preferences: Dict) -> str:
+        """Generate LLM prompt context from API request preferences (mobile app)"""
+        context = []
+        
+        # Units
+        if preferences.get('units'):
+            unit_desc = 'kg, g, ml, l, °C' if preferences['units'] == 'metric' else 'lbs, oz, cups, tablespoons, °F'
+            context.append(f"Use {preferences['units']} measurements ({unit_desc})")
+        
+        # Servings
+        if preferences.get('defaultServings'):
+            context.append(f"Recipe should serve {preferences['defaultServings']} people")
+        
+        # Difficulty
+        if preferences.get('preferredDifficulty'):
+            context.append(f"Prefer {preferences['preferredDifficulty']} difficulty level recipes")
+        
+        # Time constraints
+        if preferences.get('maxCookTime'):
+            context.append(f"Maximum cooking time: {preferences['maxCookTime']} minutes")
+        if preferences.get('maxPrepTime'):
+            context.append(f"Maximum prep time: {preferences['maxPrepTime']} minutes")
+        
+        # Dietary restrictions
+        if preferences.get('dietaryRestrictions') and len(preferences['dietaryRestrictions']) > 0:
+            context.append(f"Dietary requirements: {', '.join(preferences['dietaryRestrictions'])}")
+        
+        # Allergens
+        if preferences.get('allergens') and len(preferences['allergens']) > 0:
+            context.append(f"MUST AVOID these allergens: {', '.join(preferences['allergens'])}")
+        
+        # Dislikes
+        if preferences.get('dislikes') and len(preferences['dislikes']) > 0:
+            context.append(f"Avoid these ingredients: {', '.join(preferences['dislikes'])}")
+        
+        # Grocery categories
+        if preferences.get('groceryCategories') and len(preferences['groceryCategories']) > 0:
+            context.append(f"Organize grocery list by these categories: {', '.join(preferences['groceryCategories'])}")
+        
+        # Additional preferences
+        if preferences.get('additionalPreferences') and preferences['additionalPreferences'].strip():
+            context.append(f"Additional preferences: {preferences['additionalPreferences'].strip()}")
+        
+        return f"\n\nUser Preferences:\n" + "\n".join(f"• {item}" for item in context) if context else ""
+    
     def convert_to_api_response(
         self, 
         recipe_data: Dict[str, Any], 
@@ -470,7 +547,7 @@ Provide the corrected JSON with all ingredient categories fixed to use ONLY the 
                     name=ing['name'],
                     amount=str(ing['amount']),
                     unit=ing.get('unit'),
-                    category=ing.get('category', 'pantry')
+                    category=ing['category']  # Should always exist after validation
                 )
                 for i, ing in enumerate(ingredients)
             ]
