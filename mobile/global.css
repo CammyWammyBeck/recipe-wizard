@@ -1,3 +1,239 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Recipe Wizard Theme Variables */
+:root {
+  /* Brand Colors */
+  --wizard-primary: #3b82f6;
+  --wizard-primary-dark: #2563eb;
+  --wizard-primary-light: #60a5fa;
+  --wizard-accent: #8b5cf6;
+  --wizard-accent-dark: #7c3aed;
+  --wizard-accent-light: #a78bfa;
+  
+  /* Light Mode (default) */
+  --color-background: #ffffff;
+  --color-background-secondary: #f8fafc;
+  --color-background-tertiary: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #64748b;
+  --color-text-disabled: #94a3b8;
+  
+  /* Status Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  /* Shadows & Effects */
+  --shadow-wizard-glow: 0 0 20px rgba(59, 130, 246, 0.4);
+  --shadow-wizard-glow-lg: 0 0 30px rgba(96, 165, 250, 0.6);
+  --text-glow: 0 0 8px rgba(96, 165, 250, 0.8), 0 0 20px rgba(59, 130, 246, 0.6);
+}
+
+/* Dark Mode Theme */
+.dark {
+  --color-background: #0f172a;
+  --color-background-secondary: #1e293b;
+  --color-background-tertiary: #334155;
+  --color-surface: #1e293b;
+  --color-surface-secondary: #334155;
+  --color-border: #475569;
+  --color-border-light: #64748b;
+  --color-text: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-tertiary: #94a3b8;
+  --color-text-disabled: #64748b;
+}
+
+/* Font Loading & Base Styles */
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English&family=Uncial+Antiqua&family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+/* Base Typography */
+@layer base {
+  html {
+    font-family: 'Plus Jakarta Sans', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+  }
+}
+
+/* Component Utilities */
+@layer components {
+  /* Theme-aware backgrounds */
+  .bg-theme-surface {
+    background-color: var(--color-surface);
+  }
+  
+  .bg-theme-surface-secondary {
+    background-color: var(--color-surface-secondary);
+  }
+  
+  .bg-theme-background {
+    background-color: var(--color-background);
+  }
+  
+  .bg-theme-background-secondary {
+    background-color: var(--color-background-secondary);
+  }
+  
+  /* Theme-aware text */
+  .text-theme-primary {
+    color: var(--color-text);
+  }
+  
+  .text-theme-secondary {
+    color: var(--color-text-secondary);
+  }
+  
+  .text-theme-tertiary {
+    color: var(--color-text-tertiary);
+  }
+  
+  /* Theme-aware borders */
+  .border-theme {
+    border-color: var(--color-border);
+  }
+  
+  .border-theme-light {
+    border-color: var(--color-border-light);
+  }
+  
+  /* Wizard brand effects */
+  .wizard-text-glow {
+    text-shadow: var(--text-glow);
+  }
+  
+  .wizard-shadow-glow {
+    box-shadow: var(--shadow-wizard-glow);
+  }
+  
+  .wizard-shadow-glow-lg {
+    box-shadow: var(--shadow-wizard-glow-lg);
+  }
+  
+  /* Button variants using CSS variables */
+  .btn-primary {
+    @apply bg-wizard-primary text-white font-semibold py-3 px-6 rounded-xl shadow-wizard-glow;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .btn-primary:hover {
+    @apply bg-wizard-primary-light scale-105 shadow-wizard-glow-lg;
+  }
+  
+  .btn-primary:active {
+    @apply scale-95;
+  }
+  
+  .btn-secondary {
+    @apply bg-theme-surface-secondary border border-theme text-theme-primary font-semibold py-3 px-6 rounded-xl;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .btn-secondary:hover {
+    @apply bg-theme-background-tertiary scale-105;
+  }
+  
+  .btn-secondary:active {
+    @apply scale-95;
+  }
+  
+  /* Input field styles */
+  .input-field {
+    @apply bg-theme-surface border border-theme text-theme-primary placeholder:text-theme-tertiary rounded-xl px-4 py-3;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .input-field:focus {
+    @apply border-wizard-primary ring-2 ring-wizard-primary ring-opacity-30 outline-none;
+  }
+  
+  /* Card styles */
+  .card {
+    @apply bg-theme-surface border border-theme rounded-2xl p-6 shadow-surface;
+  }
+  
+  .card-elevated {
+    @apply bg-theme-surface border border-theme rounded-2xl p-6 shadow-surface-lg;
+  }
+  
+  /* Gradient backgrounds */
+  .bg-wizard-gradient {
+    background: linear-gradient(135deg, var(--wizard-primary), var(--wizard-accent));
+  }
+  
+  .bg-theme-gradient {
+    background: linear-gradient(135deg, var(--color-background), var(--color-background-secondary));
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  /* Safe area utilities for mobile */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}

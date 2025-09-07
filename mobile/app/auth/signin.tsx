@@ -1,25 +1,45 @@
-import React from 'react';
-import { View, Text, StatusBar, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button, useAppTheme } from '../components';
+import { Button, TextInput, useAppTheme } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function WelcomeScreen() {
-  const { theme, isDark, setThemeMode, themeMode } = useAppTheme();
+export default function SignInScreen() {
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleGetStarted = () => {
-    router.push('/auth/signin');
+  const handleSignIn = async () => {
+    setIsLoading(true);
+    
+    // TODO: Implement actual authentication
+    console.log('Sign in attempted with:', { email, password });
+    
+    // Simulate loading
+    setTimeout(() => {
+      setIsLoading(false);
+      // Navigate to prompt screen for now
+      router.push('/prompt');
+    }, 1000);
   };
 
-  const handleToggleTheme = () => {
-    if (themeMode === 'system') {
-      setThemeMode(isDark ? 'light' : 'dark');
-    } else {
-      setThemeMode(themeMode === 'dark' ? 'light' : 'dark');
-    }
+  const handleSignUp = () => {
+    router.push('/auth/signup');
+  };
+
+  const handleForgotPassword = () => {
+    // TODO: Implement forgot password
+    console.log('Forgot password pressed');
+  };
+
+  const handleBack = () => {
+    router.back();
   };
 
   return (
@@ -40,7 +60,7 @@ export default function WelcomeScreen() {
         <View
           style={{
             flexDirection: 'row',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             alignItems: 'center',
             paddingTop: insets.top + theme.spacing.md,
             paddingHorizontal: theme.spacing.xl,
@@ -48,7 +68,7 @@ export default function WelcomeScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={handleToggleTheme}
+            onPress={handleBack}
             style={{
               width: 40,
               height: 40,
@@ -59,27 +79,30 @@ export default function WelcomeScreen() {
             }}
           >
             <MaterialCommunityIcons
-              name={isDark ? 'weather-sunny' : 'weather-night'}
+              name="arrow-left"
               size={24}
               color={theme.colors.theme.textSecondary}
             />
           </TouchableOpacity>
+
+          <View style={{ width: 40 }} />
         </View>
         
-        <View
-          style={{
-            flex: 1,
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: insets.bottom + theme.spacing.lg,
+            paddingBottom: insets.bottom + theme.spacing.xl,
           }}
+          showsVerticalScrollIndicator={false}
         >
           {/* Hero Section */}
           <View
             style={{
               alignItems: 'center',
-              flex: 1,
-              justifyContent: 'center',
-              paddingTop: theme.spacing.xl,
+              marginTop: theme.spacing.xl,
+              marginBottom: theme.spacing['4xl'],
             }}
           >
             {/* Magical Circle with Chef Hat */}
@@ -91,11 +114,11 @@ export default function WelcomeScreen() {
                 backgroundColor: theme.colors.wizard.primary + '15',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: theme.spacing.xl,
+                marginBottom: theme.spacing['2xl'],
                 position: 'relative',
               }}
             >
-              {/* Animated sparkles around the circle */}
+              {/* Sparkles */}
               <View
                 style={{
                   position: 'absolute',
@@ -107,15 +130,15 @@ export default function WelcomeScreen() {
                   name="star-four-points"
                   size={14}
                   color={theme.colors.wizard.accent}
-                  style={{ opacity: 0.8 }}
+                  style={{ opacity: 0.7 }}
                 />
               </View>
               
               <View
                 style={{
                   position: 'absolute',
-                  bottom: 15,
-                  left: 15,
+                  bottom: 12,
+                  left: 12,
                 }}
               >
                 <MaterialCommunityIcons
@@ -129,7 +152,7 @@ export default function WelcomeScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 25,
+                  top: 20,
                   left: 20,
                 }}
               >
@@ -137,71 +160,126 @@ export default function WelcomeScreen() {
                   name="star-four-points"
                   size={12}
                   color={theme.colors.wizard.accent}
-                  style={{ opacity: 0.7 }}
+                  style={{ opacity: 0.5 }}
                 />
               </View>
 
               {/* Main Chef Hat Icon */}
               <MaterialCommunityIcons
                 name="chef-hat"
-                size={60}
+                size={50}
                 color={theme.colors.wizard.primary}
               />
             </View>
 
             <Text
               style={{
-                fontSize: theme.typography.fontSize.displayMedium,
+                fontSize: theme.typography.fontSize.displaySmall,
                 fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.theme.text,
-                fontFamily: theme.typography.fontFamily.wizard,
+                fontFamily: theme.typography.fontFamily.heading,
                 textAlign: 'center',
                 marginBottom: theme.spacing.md,
-                lineHeight: theme.typography.fontSize.displayMedium * 1.1,
-                textShadowColor: theme.colors.wizard.primary + '30',
-                textShadowOffset: { width: 0, height: 0 },
-                textShadowRadius: isDark ? 12 : 0,
+                lineHeight: theme.typography.fontSize.displaySmall * 1.2,
               }}
             >
-              Recipe Wizard
+              Welcome back!
             </Text>
-
+            
             <Text
               style={{
                 fontSize: theme.typography.fontSize.bodyLarge,
                 color: theme.colors.theme.textSecondary,
                 fontFamily: theme.typography.fontFamily.body,
                 textAlign: 'center',
-                marginBottom: theme.spacing.lg,
                 lineHeight: theme.typography.fontSize.bodyLarge * 1.4,
-                maxWidth: 280,
               }}
             >
-              Create amazing recipes with just a few words ✨
+              Sign in to continue your culinary journey ✨
             </Text>
           </View>
 
-          {/* Get Started Button */}
-          <View
-            style={{
-              paddingTop: theme.spacing.lg,
-            }}
-          >
+          {/* Form */}
+          <View style={{ marginBottom: theme.spacing['2xl'] }}>
+            <TextInput
+              label="Email"
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              leftIcon="email-outline"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              containerStyle={{ marginBottom: theme.spacing.lg }}
+            />
+
+            <TextInput
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              leftIcon="lock-outline"
+              rightIcon={showPassword ? "eye-off" : "eye"}
+              onRightIconPress={() => setShowPassword(!showPassword)}
+              secureTextEntry={!showPassword}
+              containerStyle={{ marginBottom: theme.spacing.sm }}
+            />
+
+            <Button
+              variant="ghost"
+              size="small"
+              onPress={handleForgotPassword}
+              style={{ alignSelf: 'flex-end', marginBottom: theme.spacing.xl }}
+            >
+              Forgot Password?
+            </Button>
+
             <Button
               variant="primary"
               size="large"
               fullWidth
-              onPress={handleGetStarted}
+              onPress={handleSignIn}
+              loading={isLoading}
               rightIcon="arrow-right"
               style={{
                 minHeight: 64,
                 ...theme.shadows.wizard.glow,
               }}
             >
-              Get Started
+              Sign In
             </Button>
           </View>
-        </View>
+
+          {/* Sign Up Link */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: 'auto',
+              paddingTop: theme.spacing['2xl'],
+            }}
+          >
+            <Text
+              style={{
+                fontSize: theme.typography.fontSize.bodyMedium,
+                color: theme.colors.theme.textSecondary,
+                fontFamily: theme.typography.fontFamily.body,
+                marginRight: theme.spacing.sm,
+              }}
+            >
+              Don't have an account?
+            </Text>
+            
+            <Button
+              variant="ghost"
+              size="small"
+              onPress={handleSignUp}
+            >
+              Sign Up
+            </Button>
+          </View>
+        </ScrollView>
       </View>
     </>
   );
