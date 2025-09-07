@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recipe Wizard - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+    :root {
+      --primary-color: #007BFF;
+    }
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #0c0a14;
+      color: #e0e0e0;
+    }
+    .font-playfair {
+      font-family: 'Playfair Display', serif;
+    }
+    .setting-card {
+      @apply bg-[#1a1625] rounded-xl p-4 flex items-center justify-between transition-all duration-300;
+    }
+    .setting-icon {
+      @apply text-3xl text-blue-400;
+    }
+    .setting-label {
+      @apply text-lg font-medium text-white;
+    }
+    .setting-value {
+      @apply text-sm text-gray-400;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#0c0a14] text-white">
+<div class="min-h-screen flex flex-col">
+<header class="p-6 flex items-center justify-between">
+<button class="text-white">
+<span class="material-symbols-outlined">arrow_back_ios_new</span>
+</button>
+<h1 class="text-2xl font-playfair font-bold text-center flex-grow">Settings</h1>
+<div class="w-8"></div>
+</header>
+<main class="flex-grow p-6 space-y-8">
+<div class="text-center">
+<p class="text-gray-400">Customize your recipe preferences.</p>
+</div>
+<div class="space-y-6">
+<div>
+<h2 class="text-lg font-bold text-blue-300 mb-3 ml-2">Dietary Preferences</h2>
+<div class="space-y-3">
+<a class="setting-card" href="#">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined setting-icon">nutrition</span>
+<div>
+<p class="setting-label">Dietary Restrictions</p>
+<p class="setting-value">Vegetarian, Gluten-Free</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-500">chevron_right</span>
+</a>
+<a class="setting-card" href="#">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined setting-icon">ecg_heart</span>
+<div>
+<p class="setting-label">Allergies &amp; Intolerances</p>
+<p class="setting-value">Peanuts, Lactose</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-500">chevron_right</span>
+</a>
+</div>
+</div>
+<div>
+<h2 class="text-lg font-bold text-blue-300 mb-3 ml-2">App Settings</h2>
+<div class="space-y-3">
+<a class="setting-card" href="#">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined setting-icon">science</span>
+<div>
+<p class="setting-label">Measurement Units</p>
+<p class="setting-value">Metric</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-500">chevron_right</span>
+</a>
+<a class="setting-card" href="#">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined setting-icon">notifications</span>
+<div>
+<p class="setting-label">Notifications</p>
+<p class="setting-value">Enabled</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-500">chevron_right</span>
+</a>
+</div>
+</div>
+<div>
+<h2 class="text-lg font-bold text-blue-300 mb-3 ml-2">Legal & Privacy</h2>
+<div class="space-y-3">
+<a class="setting-card" href="#">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined setting-icon">shield_person</span>
+<div>
+<p class="setting-label">Privacy Policy</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-500">chevron_right</span>
+</a>
+<a class="setting-card" href="#">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined setting-icon">gavel</span>
+<div>
+<p class="setting-label">Terms of Service</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-500">chevron_right</span>
+</a>
+</div>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full h-14 rounded-full bg-blue-600 text-white text-lg font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all duration-300 ease-in-out">
+            Save Changes
+        </button>
+</div>
+</main>
+</div>
+
+</body></html>

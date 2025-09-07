@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recipe Wizard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English&amp;family=Poppins:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+    :root {
+      --primary-blue: #3b82f6;
+      --primary-blue-dark: #2563eb;
+      --primary-blue-light: #60a5fa;
+      --background-dark: #0f172a;
+      --background-light: #1e293b;
+      --text-glow: 0 0 8px rgba(96, 165, 250, 0.8), 0 0 20px rgba(59, 130, 246, 0.6);
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--background-dark);
+    }
+    .magical-font {
+      font-family: 'IM Fell English', serif;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col min-h-screen text-white">
+<div class="relative flex-grow flex flex-col items-center justify-between p-6 bg-gradient-to-b from-[var(--background-dark)] to-[var(--background-light)]">
+<div class="absolute inset-0 bg-cover bg-center opacity-10" style="background-image: url('https://lh3.googleusercontent.com/u/0/drive-viewer/AKGpiha1FqYhM8nUqWz9k-D_3Y4hE8P6tJ6zT0r7yR1gX5aB6e4b8C9lR4gE9f1oP2lG4c7wQd2K_1oK3wG_5b8oY-9hA=w1920-h961')"></div>
+<div class="relative z-10 flex flex-col items-center justify-center flex-grow text-center mt-16">
+<div class="mb-8">
+<img alt="Modern Wizard Illustration" class="w-72 h-72 sm:w-80 sm:h-80 object-contain drop-shadow-[0_10px_15px_rgba(59,130,246,0.25)]" src="https://lh3.googleusercontent.com/u/0/drive-viewer/AKGpihbH7V5R9k-5n1zQv9l6o0C-0zV-p-mF4oV-o2-m-4N7zT0o0o3b-gS1j-l9P3yV-x3l-r-x2k-O2j-R-k5-o0h-i=w1920-h961"/>
+</div>
+<h1 class="text-6xl sm:text-7xl magical-font leading-tight mb-4" style="text-shadow: var(--text-glow);">
+        Recipe<br/>Wizard
+      </h1>
+<p class="text-base text-slate-300 max-w-xs">
+        Create amazing recipes with just a few words.
+      </p>
+</div>
+<div class="relative z-10 w-full px-4 pb-8 pt-4">
+<button class="w-full h-14 bg-[var(--primary-blue)] rounded-full text-lg font-semibold tracking-wide shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all duration-300 ease-in-out hover:bg-[var(--primary-blue-light)] hover:shadow-[0_0_30px_rgba(96,165,250,0.6)] active:scale-95">
+        Get Started
+      </button>
+</div>
+</div>
+
+</body></html>

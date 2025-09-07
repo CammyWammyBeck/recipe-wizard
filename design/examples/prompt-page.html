@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"/>
+<link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
+<link as="style" href="https://fonts.googleapis.com/css2?display=swap&amp;family=Poppins:wght@400;500;600;700&amp;family=Merriweather:wght@400;700" onload="this.rel='stylesheet'" rel="stylesheet"/>
+<title>Stitch Design</title>
+<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #3b82f6;
+            --primary-glow: #2563eb;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .font-serif {
+            font-family: 'Merriweather', serif;
+        }
+        .text-glow {
+            text-shadow: 0 0 8px rgba(59, 130, 246, 0.7), 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#0D1117] text-gray-200">
+<div class="relative flex size-full min-h-screen flex-col justify-between overflow-x-hidden" style="background: radial-gradient(ellipse at bottom, #111827, #0D1117);">
+<div class="flex-grow">
+<header class="flex items-center p-4">
+<span class="material-symbols-outlined text-3xl text-[var(--primary-color)] text-glow">auto_awesome</span>
+<h1 class="flex-1 text-center text-2xl font-bold tracking-tight text-glow font-serif">Recipe Wizard</h1>
+<div class="w-8"></div>
+</header>
+<main class="px-6 py-8 text-center">
+<h2 class="text-3xl font-bold leading-tight text-white font-serif">What would you like to cook today?</h2>
+<p class="mt-3 text-blue-300">Describe your recipe idea below.</p>
+<div class="mt-8 relative">
+<div class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-50"></div>
+<textarea class="relative w-full h-48 bg-[#161B22] border border-blue-800/50 rounded-2xl text-blue-200 placeholder-blue-400/60 p-4 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-offset-2 focus:ring-offset-[#0D1117] resize-none shadow-[0_0_20px_rgba(59,130,246,0.2)]" placeholder="Something quick and delicious for dinner..."></textarea>
+<div class="absolute bottom-4 right-4 text-blue-500 opacity-50">
+<svg class="h-10 w-10" fill="none" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+<path d="M25 42c-9.37 0-17-7.63-17-17S15.63 8 25 8s17 7.63 17 17-7.63 17-17 17Zm0-32c-8.27 0-15 6.73-15 15s6.73 15 15 15 15-6.73 15-15-6.73-15-15-15Z" fill="currentColor" opacity=".2"></path>
+<path d="m27.5 28.5-2.5 5-2.5-5-5-2.5 5-2.5 2.5-5 2.5 5 5 2.5-5 2.5ZM15 19.5l-2-4-2 4-4 2 4 2 2 4 2-4 4-2-4-2Z" fill="currentColor"></path>
+</svg>
+</div>
+</div>
+<div class="mt-8">
+<button class="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[var(--primary-color)] to-indigo-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg shadow-blue-500/30 transform hover:scale-105 transition-transform duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50">
+<span class="material-symbols-outlined">auto_fix_high</span>
+<span>Create Recipe</span>
+</button>
+</div>
+</main>
+</div>
+<footer class="sticky bottom-0 bg-[#0D1117]/70 backdrop-blur-lg border-t border-gray-800/50">
+<nav class="flex justify-around p-2">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[var(--primary-color)]" href="#">
+<span class="material-symbols-outlined text-2xl">add_circle</span>
+<span class="text-xs font-medium">New Recipe</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-400" href="#">
+<span class="material-symbols-outlined text-2xl">bookmark</span>
+<span class="text-xs font-medium">Saved</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-400" href="#">
+<span class="material-symbols-outlined text-2xl">history</span>
+<span class="text-xs font-medium">History</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-400" href="#">
+<span class="material-symbols-outlined text-2xl">settings</span>
+<span class="text-xs font-medium">Settings</span>
+</a>
+</nav>
+</footer>
+</div>
+
+</body></html>
