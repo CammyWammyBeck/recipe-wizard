@@ -1,6 +1,7 @@
 // API service for handling recipe generation and data persistence
 import { RecipeGenerationRequest, RecipeGenerationResponse, SavedRecipeData, ConversationEntry } from '../types/api';
 import { PreferencesService } from './preferences';
+import { SavedRecipesService } from './savedRecipes';
 import * as SecureStore from 'expo-secure-store';
 
 // Configuration - Uses environment variable
@@ -113,24 +114,83 @@ class APIService {
    */
   async saveRecipe(recipeData: RecipeGenerationResponse): Promise<SavedRecipeData> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/recipes/save`, {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/recipes/save/${recipeData.id}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // TODO: Add authentication headers
-        },
-        body: JSON.stringify(recipeData),
+        headers,
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
+      const result = await response.json();
+      
+      // Return the recipe data with saved metadata
+      return {
+        ...recipeData,
+        savedAt: new Date().toISOString(),
+        isFavorite: true
+      };
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      throw new Error('Failed to save recipe. Please try again.');
+    }
+  }
+
+  /**
+   * Remove a recipe from user's favorites
+   */
+  async unsaveRecipe(recipeId: string): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/recipes/saved/${recipeId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error unsaving recipe:', error);
+      throw new Error('Failed to unsave recipe. Please try again.');
+    }
+  }
+
+  /**
+   * Check if a recipe is saved
+   */
+  async isRecipeSaved(recipeId: string): Promise<boolean> {
+    try {
+      const savedRecipes = await this.getSavedRecipes();
+      return savedRecipes.some(recipe => recipe.id === recipeId);
+    } catch (error) {
+      console.error('Error checking if recipe is saved:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all saved recipes
+   */
+  async getSavedRecipes(): Promise<SavedRecipeData[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/recipes/saved`, {
+        method: 'GET',
+        headers,
+      });
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      return data;
+      return data.recipes || [];
     } catch (error) {
-      console.error('Error saving recipe:', error);
-      throw new Error('Failed to save recipe. Please try again.');
+      console.error('Error fetching saved recipes:', error);
+      throw new Error('Failed to load saved recipes. Please try again.');
     }
   }
 
@@ -139,36 +199,21 @@ class APIService {
    */
   async getConversationHistory(limit: number = 20, offset: number = 0): Promise<ConversationEntry[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`);
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`, {
+        method: 'GET',
+        headers,
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      return data;
+      return data.recipes || [];
     } catch (error) {
       console.error('Error fetching conversation history:', error);
       throw new Error('Failed to load conversation history. Please try again.');
-    }
-  }
-
-  /**
-   * Get user's saved recipes
-   */
-  async getSavedRecipes(limit: number = 20, offset: number = 0): Promise<SavedRecipeData[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/recipes/saved?limit=${limit}&offset=${offset}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error fetching saved recipes:', error);
-      throw new Error('Failed to load saved recipes. Please try again.');
     }
   }
 
@@ -177,11 +222,10 @@ class APIService {
    */
   async deleteRecipe(recipeId: string): Promise<void> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/api/recipes/${recipeId}`, {
         method: 'DELETE',
-        headers: {
-          // TODO: Add authentication headers
-        },
+        headers,
       });
 
       if (!response.ok) {

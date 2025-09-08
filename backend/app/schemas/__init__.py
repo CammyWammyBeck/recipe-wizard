@@ -8,7 +8,7 @@ from .recipe import (
     IngredientCreate, IngredientResponse, IngredientAPI,
     RecipeCreate, RecipeUpdate, RecipeResponse, RecipeAPI,
     RecipeGenerationRequest, RecipeGenerationResponse,
-    SavedRecipeCreate, SavedRecipeUpdate, SavedRecipeResponse
+    SavedRecipeCreate, SavedRecipeUpdate, SavedRecipeResponse, SaveRecipeSuccessResponse
 )
 from .conversation import (
     ConversationCreate, ConversationUpdate, ConversationResponse, ConversationAPI,
@@ -28,7 +28,7 @@ __all__ = [
     "IngredientCreate", "IngredientResponse", "IngredientAPI",
     "RecipeCreate", "RecipeUpdate", "RecipeResponse", "RecipeAPI",
     "RecipeGenerationRequest", "RecipeGenerationResponse",
-    "SavedRecipeCreate", "SavedRecipeUpdate", "SavedRecipeResponse",
+    "SavedRecipeCreate", "SavedRecipeUpdate", "SavedRecipeResponse", "SaveRecipeSuccessResponse",
     
     # Conversation schemas  
     "ConversationCreate", "ConversationUpdate", "ConversationResponse", "ConversationAPI",

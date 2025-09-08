@@ -27,6 +27,7 @@ export default function RecipeResultScreen() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Get recipe data from route params or load from API
   useEffect(() => {
@@ -71,6 +72,22 @@ export default function RecipeResultScreen() {
     }
   }, [recipeData]);
 
+  // Check if recipe is saved
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (recipeData?.id) {
+        try {
+          const saved = await apiService.isRecipeSaved(recipeData.id);
+          setIsSaved(saved);
+        } catch (error) {
+          console.error('Error checking saved status:', error);
+        }
+      }
+    };
+    
+    checkSavedStatus();
+  }, [recipeData?.id]);
+
   const handleIngredientToggle = (ingredientId: string, checked: boolean) => {
     setIngredients(prev => 
       prev.map(ingredient => 
@@ -83,6 +100,25 @@ export default function RecipeResultScreen() {
 
   const handleBack = () => {
     router.back();
+  };
+
+  const handleSaveToggle = async () => {
+    if (!recipeData) return;
+    
+    try {
+      if (isSaved) {
+        // Remove from saved recipes
+        await apiService.unsaveRecipe(recipeData.id);
+        setIsSaved(false);
+      } else {
+        // Save recipe
+        await apiService.saveRecipe(recipeData);
+        setIsSaved(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle recipe save:', error);
+      // Could add error toast here
+    }
   };
 
   // Loading state
@@ -163,6 +199,18 @@ export default function RecipeResultScreen() {
           </TouchableOpacity>
 
           <View style={{ flex: 1 }}>
+            {params.fromHistory && (
+              <Text
+                style={{
+                  fontSize: theme.typography.fontSize.bodySmall,
+                  color: theme.colors.wizard.primary,
+                  fontFamily: theme.typography.fontFamily.body,
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
+                From Saved Recipes
+              </Text>
+            )}
             <Text
               style={{
                 fontSize: theme.typography.fontSize.titleMedium,
@@ -205,6 +253,28 @@ export default function RecipeResultScreen() {
               )}
             </View>
           </View>
+
+          {/* Save/Star Button */}
+          <TouchableOpacity
+            onPress={handleSaveToggle}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: isSaved 
+                ? theme.colors.wizard.primary + '20' 
+                : theme.colors.theme.backgroundSecondary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: theme.spacing.md,
+            }}
+          >
+            <MaterialCommunityIcons
+              name={isSaved ? "star" : "star-outline"}
+              size={24}
+              color={isSaved ? theme.colors.wizard.primary : theme.colors.theme.textSecondary}
+            />
+          </TouchableOpacity>
 
           {/* Sparkle decoration */}
           <View

@@ -140,3 +140,9 @@ class SavedRecipeResponse(BaseModel):
     recipe: RecipeResponse
     created_at: datetime
     updated_at: datetime
+
+class SaveRecipeSuccessResponse(BaseModel):
+    """Simple success response for saving recipes"""
+    success: bool
+    message: str
+    savedRecipeId: str

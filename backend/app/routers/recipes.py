@@ -7,7 +7,7 @@ from ..database import get_db
 from ..models import User, Recipe, RecipeIngredient, SavedRecipe
 from ..schemas import (
     RecipeGenerationRequest, RecipeGenerationResponse,
-    RecipeAPI, IngredientAPI, SavedRecipeResponse, ErrorResponse
+    RecipeAPI, IngredientAPI, SavedRecipeResponse, SaveRecipeSuccessResponse, ErrorResponse
 )
 from ..utils.auth import get_current_user
 from ..services.llm_service import llm_service
@@ -36,12 +36,24 @@ async def generate_recipe(
         # Generate recipe using LLM service with user context
         generation_result = await llm_service.generate_recipe_with_fallback(request, current_user)
         
-        # Convert to API response format
+        # Save recipe to database first
+        recipe_id = await _save_recipe_to_database(
+            db, 
+            current_user, 
+            generation_result['recipe_data'], 
+            request.prompt,
+            generation_result
+        )
+        
+        # Convert to API response format with actual database ID
         api_response = llm_service.convert_to_api_response(
             generation_result['recipe_data'],
             request.prompt,
             generation_result
         )
+        
+        # Replace temporary ID with actual database ID
+        api_response['id'] = str(recipe_id)
         
         return RecipeGenerationResponse(
             id=api_response['id'],
@@ -120,7 +132,7 @@ async def get_recipe_history(
                     for ing in ingredients
                 ],
                 "generatedAt": recipe.created_at.isoformat(),
-                "userPrompt": recipe.user_prompt
+                "userPrompt": recipe.original_prompt
             })
         
         return {
@@ -141,7 +153,7 @@ async def get_recipe_history(
             detail="Failed to fetch recipe history"
         )
 
-@router.post("/save/{recipe_id}", response_model=SavedRecipeResponse)
+@router.post("/save/{recipe_id}", response_model=SaveRecipeSuccessResponse)
 async def save_recipe(
     recipe_id: int,
     current_user: User = Depends(get_current_user),
@@ -185,7 +197,7 @@ async def save_recipe(
         
         logger.info(f"Recipe {recipe_id} saved by user {current_user.email}")
         
-        return SavedRecipeResponse(
+        return SaveRecipeSuccessResponse(
             success=True,
             message="Recipe saved successfully",
             savedRecipeId=str(saved_recipe.id)
@@ -260,7 +272,7 @@ async def get_saved_recipes(
             SavedRecipe, Recipe.id == SavedRecipe.recipe_id
         ).filter(
             SavedRecipe.user_id == current_user.id
-        ).order_by(SavedRecipe.saved_at.desc())
+        ).order_by(SavedRecipe.created_at.desc())
         
         total_count = saved_recipes_query.count()
         recipes = saved_recipes_query.offset(offset).limit(limit).all()
@@ -271,6 +283,12 @@ async def get_saved_recipes(
             ingredients = db.query(RecipeIngredient).filter(
                 RecipeIngredient.recipe_id == recipe.id
             ).all()
+            
+            # Get saved recipe record for saved timestamp
+            saved_recipe = db.query(SavedRecipe).filter(
+                SavedRecipe.user_id == current_user.id,
+                SavedRecipe.recipe_id == recipe.id
+            ).first()
             
             recipe_responses.append({
                 "id": str(recipe.id),
@@ -295,11 +313,8 @@ async def get_saved_recipes(
                     for ing in ingredients
                 ],
                 "generatedAt": recipe.created_at.isoformat(),
-                "userPrompt": recipe.user_prompt,
-                "savedAt": db.query(SavedRecipe).filter(
-                    SavedRecipe.user_id == current_user.id,
-                    SavedRecipe.recipe_id == recipe.id
-                ).first().saved_at.isoformat()
+                "userPrompt": recipe.original_prompt,
+                "savedAt": saved_recipe.created_at.isoformat() if saved_recipe else recipe.created_at.isoformat()
             })
         
         return {
@@ -343,7 +358,7 @@ async def _save_recipe_to_database(
             servings=recipe_data['recipe'].get('servings', 4),
             difficulty=recipe_data['recipe'].get('difficulty', 'medium'),
             tips=recipe_data['recipe'].get('tips', []),
-            user_prompt=user_prompt,
+            original_prompt=user_prompt,
             created_by_id=user.id,
             generation_metadata={
                 'model': generation_metadata['model'],

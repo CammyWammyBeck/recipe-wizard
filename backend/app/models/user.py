@@ -40,6 +40,7 @@ class User(BaseModel):
     # Relationships
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
+    created_recipes = relationship("Recipe", back_populates="created_by", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', username='{self.username}')>"

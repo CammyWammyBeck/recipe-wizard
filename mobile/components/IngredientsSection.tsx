@@ -89,6 +89,30 @@ export function IngredientsSection({
     onIngredientToggle?.(ingredientId, checked);
   };
 
+  const formatIngredientLabel = (ingredient: Ingredient): string => {
+    const { amount, unit, name } = ingredient;
+    
+    // Check if this is a non-measurement ingredient (LLM will set unit to "N/A")
+    const isNonMeasurement = !unit || unit.toLowerCase() === 'n/a';
+    
+    if (isNonMeasurement && amount) {
+      // For non-measurement ingredients, put name first with amount in parentheses
+      // e.g., "Salt (to taste)", "Parsley (to garnish)"
+      return `${name} (${amount})`;
+    } else if (amount && unit) {
+      // Standard measurement format: amount + unit + name
+      // e.g., "2 cups flour", "1 tbsp olive oil"
+      return `${amount} ${unit} ${name}`;
+    } else if (amount) {
+      // Amount only (no unit specified)
+      // e.g., "2 eggs", "1 onion"
+      return `${amount} ${name}`;
+    } else {
+      // Fallback to just the name
+      return name;
+    }
+  };
+
   const getTotalChecked = () => {
     return ingredients.filter(ing => ing.checked).length;
   };
@@ -171,7 +195,7 @@ export function IngredientsSection({
                 {categoryIngredients.map(ingredient => (
                   <CheckboxItem
                     key={ingredient.id}
-                    label={`${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ''} ${ingredient.name}`}
+                    label={formatIngredientLabel(ingredient)}
                     checked={ingredient.checked || false}
                     onPress={() => handleIngredientToggle(ingredient.id, !ingredient.checked)}
                     style={{

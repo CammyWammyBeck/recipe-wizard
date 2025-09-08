@@ -88,6 +88,12 @@ REQUIRED JSON FORMAT:
       "category": "MUST_BE_FROM_THIS_LIST: {categories_list}"
     }}
   ]
+
+INGREDIENT MEASUREMENT RULES:
+- For measurable quantities, use specific amounts and units (e.g., "2", "cups")
+- For taste-based ingredients (salt, pepper, spices), use descriptive amounts like "to taste", "pinch", "dash" and set unit to "N/A"
+- For garnishes or optional additions, use amounts like "to garnish", "as needed" and set unit to "N/A"
+- NEVER use "N/A" as the amount - always provide a descriptive amount
 }}
 
 DIFFICULTY LEVELS: easy, medium, hard"""

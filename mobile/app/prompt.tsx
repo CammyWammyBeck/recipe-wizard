@@ -84,6 +84,10 @@ export default function PromptScreen() {
     router.push('/profile');
   };
 
+  const handleHistory = () => {
+    router.push('/history');
+  };
+
   const suggestionPrompts = [
     { text: "Quick pasta dinner for two", icon: "pasta" },
     { text: "Healthy breakfast with oats", icon: "bowl-mix" }, 
@@ -146,6 +150,24 @@ export default function PromptScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={handleHistory}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: theme.colors.theme.backgroundSecondary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MaterialCommunityIcons
+              name="bookmark-multiple"
+              size={24}
+              color={theme.colors.theme.textSecondary}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={handleThemeToggle}
             style={{
               width: 40,
@@ -167,7 +189,6 @@ export default function PromptScreen() {
         <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            flexGrow: 1,
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: insets.bottom + theme.spacing.xl,
           }}
@@ -441,7 +462,7 @@ export default function PromptScreen() {
           </View>
 
           {/* Enhanced Suggestions */}
-          <View style={{ flex: 1 }}>
+          <View>
             <Text
               style={{
                 fontSize: theme.typography.fontSize.titleLarge,

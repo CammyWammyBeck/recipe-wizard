@@ -12,6 +12,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
           <Stack.Screen name="prompt" options={{ headerShown: false }} />
           <Stack.Screen name="recipe-result" options={{ headerShown: false }} />
+          <Stack.Screen name="history" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>

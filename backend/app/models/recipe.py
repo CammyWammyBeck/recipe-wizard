@@ -7,6 +7,9 @@ class Recipe(BaseModel):
     
     __tablename__ = "recipes"
     
+    # User who created this recipe
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
     # Basic recipe information
     title = Column(String(500), nullable=False, index=True)
     description = Column(Text, nullable=True)
@@ -35,6 +38,7 @@ class Recipe(BaseModel):
     generation_metadata = Column(JSON, nullable=True)  # Additional generation info
     
     # Relationships
+    created_by = relationship("User", back_populates="created_recipes")
     ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="recipe")
     saved_recipes = relationship("SavedRecipe", back_populates="recipe", cascade="all, delete-orphan")

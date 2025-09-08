@@ -177,8 +177,8 @@ export default function ProfileScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
       <Header 
         title="Profile & Settings"
-        showBack
-        onBack={() => router.back()}
+        showBackButton
+        onBackPress={() => router.push('/prompt')}
       />
       
       <KeyboardAvoidingView 
