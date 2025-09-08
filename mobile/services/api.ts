@@ -3,22 +3,19 @@ import { RecipeGenerationRequest, RecipeGenerationResponse, SavedRecipeData, Con
 import { PreferencesService } from './preferences';
 import * as SecureStore from 'expo-secure-store';
 
-// Configuration - Multiple fallback options for different environments
+// Configuration - Uses environment variable
 const getApiBaseUrl = () => {
-  // Environment variable takes priority
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
+  const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+  
+  if (!apiUrl) {
+    throw new Error(
+      'EXPO_PUBLIC_API_BASE_URL environment variable is required. ' +
+      'Please create a .env file in the mobile directory with: ' +
+      'EXPO_PUBLIC_API_BASE_URL=http://YOUR_LOCAL_IP:8000'
+    );
   }
   
-  // Try different URLs based on platform
-  const possibleUrls = [
-    'http://192.168.20.7:8000',  // Your local network IP
-    'http://localhost:8000',     // Local development
-    'http://127.0.0.1:8000',     // Localhost alternative
-    'http://10.0.2.2:8000',      // Android emulator
-  ];
-  
-  return possibleUrls[0]; // Default to network IP
+  return apiUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -56,14 +53,12 @@ class APIService {
    */
   async generateRecipe(request: RecipeGenerationRequest): Promise<RecipeGenerationResponse> {
     try {
-      // Load user preferences to enhance the prompt
+      // Load user preferences and send them to backend for LLM processing
       const preferences = await PreferencesService.loadPreferences();
-      const preferencesContext = PreferencesService.generatePromptContext(preferences);
       
-      // Enhance the request with user preferences
+      // Send preferences separately - let backend/LLM handle all processing
       const enhancedRequest = {
         ...request,
-        prompt: request.prompt + preferencesContext,
         preferences: preferences,
       };
 

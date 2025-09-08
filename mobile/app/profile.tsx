@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAppTheme } from '../constants/ThemeProvider';
@@ -184,13 +185,16 @@ export default function ProfileScreen() {
         style={{ flex: 1, backgroundColor: theme.colors.theme.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <KeyboardAwareScrollView 
           style={{ flex: 1, backgroundColor: theme.colors.theme.background }}
           contentContainerStyle={{ 
             padding: theme.spacing.lg,
             backgroundColor: theme.colors.theme.background,
           }}
           showsVerticalScrollIndicator={false}
+          extraScrollHeight={50}
+          enableOnAndroid={true}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Units Preference */}
           <ExpandableCard
@@ -680,7 +684,7 @@ export default function ProfileScreen() {
           </ExpandableCard>
 
           <View style={{ marginBottom: theme.spacing['2xl'] }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

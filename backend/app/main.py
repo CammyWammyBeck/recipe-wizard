@@ -119,7 +119,6 @@ async def api_status():
         "llm_service": llm_status["status"],
         "llm_details": {
             "service": llm_status["service"],
-            "base_url": llm_status.get("base_url"),
             "default_model": llm_status.get("default_model"),
             "available_models": llm_status.get("available_models", [])
         },
@@ -138,7 +137,7 @@ async def api_status():
         return StatusResponse(
             status=overall_status,
             services=services,
-            message="Recipe Wizard API is running" + (" (LLM fallback mode)" if llm_status["status"] != "connected" else ""),
+            message="Recipe Wizard API is running" + (" (OpenAI unavailable)" if llm_status["status"] != "connected" else ""),
             timestamp=datetime.utcnow()
         )
     except Exception as e:

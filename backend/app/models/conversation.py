@@ -13,7 +13,7 @@ class Conversation(BaseModel):
     
     # LLM generation details
     llm_model = Column(String(100), nullable=True)  # Which model was used (e.g., 'llama2', 'gpt-4')
-    llm_provider = Column(String(50), nullable=True)  # Provider (e.g., 'ollama', 'openai')
+    llm_provider = Column(String(50), nullable=True)  # Provider (e.g., 'openai')
     generation_time_ms = Column(Integer, nullable=True)  # Time taken to generate
     token_count = Column(Integer, nullable=True)  # Number of tokens used
     

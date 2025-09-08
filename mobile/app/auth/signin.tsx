@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Button, TextInput, useAppTheme } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -60,12 +61,16 @@ export default function SignInScreen() {
         translucent
       />
       
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.theme.background,
-        }}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: theme.colors.theme.background,
+          }}
+        >
         {/* Top Navigation Bar */}
         <View
           style={{
@@ -98,14 +103,17 @@ export default function SignInScreen() {
           <View style={{ width: 40 }} />
         </View>
         
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: insets.bottom + theme.spacing.xl,
+            paddingBottom: insets.bottom + theme.spacing.xl + 200,
           }}
           showsVerticalScrollIndicator={false}
+          extraScrollHeight={100}
+          enableOnAndroid={true}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Hero Section */}
           <View
@@ -306,7 +314,7 @@ export default function SignInScreen() {
               flexDirection: 'row',
               justifyContent: 'center',
               alignItems: 'center',
-              marginTop: 'auto',
+              marginTop: theme.spacing['4xl'],
               paddingTop: theme.spacing['2xl'],
             }}
           >
@@ -329,8 +337,9 @@ export default function SignInScreen() {
               Sign Up
             </Button>
           </View>
-        </ScrollView>
-      </View>
+        </KeyboardAwareScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </>
   );
 }

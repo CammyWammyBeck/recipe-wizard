@@ -176,15 +176,34 @@ export default function RecipeResultScreen() {
             >
               {recipeData.recipe.title}
             </Text>
-            <Text
-              style={{
-                fontSize: theme.typography.fontSize.bodyMedium,
-                color: theme.colors.theme.textSecondary,
-                fontFamily: theme.typography.fontFamily.body,
-              }}
-            >
-              Ready in {(recipeData.recipe.prepTime || 0) + (recipeData.recipe.cookTime || 0)} minutes
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text
+                style={{
+                  fontSize: theme.typography.fontSize.bodyMedium,
+                  color: theme.colors.theme.textSecondary,
+                  fontFamily: theme.typography.fontFamily.body,
+                }}
+              >
+                Ready in {(recipeData.recipe.prepTime || 0) + (recipeData.recipe.cookTime || 0)} minutes
+              </Text>
+              {recipeData.retryCount && recipeData.retryCount > 0 && (
+                <View style={{
+                  marginLeft: theme.spacing.md,
+                  backgroundColor: theme.colors.wizard.primaryLight + '20',
+                  paddingHorizontal: theme.spacing.sm,
+                  paddingVertical: theme.spacing.xs,
+                  borderRadius: theme.borderRadius.full,
+                }}>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodySmall,
+                    color: theme.colors.wizard.primary,
+                    fontFamily: theme.typography.fontFamily.body,
+                  }}>
+                    Perfected ✨
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Sparkle decoration */}

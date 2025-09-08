@@ -30,6 +30,8 @@ export interface RecipeGenerationResponse {
   ingredients: APIIngredient[];
   generatedAt: string; // ISO timestamp
   userPrompt: string; // Original user prompt
+  retryCount?: number; // Number of retries needed
+  retryMessage?: string; // Message shown during retries
 }
 
 // For saving/loading recipes

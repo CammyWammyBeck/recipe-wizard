@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Button, TextInput, useAppTheme } from '../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiService } from '../services/api';
@@ -13,6 +14,7 @@ export default function PromptScreen() {
   
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Creating magic...');
   const [error, setError] = useState<string | null>(null);
 
   const handleCreateRecipe = async () => {
@@ -23,12 +25,28 @@ export default function PromptScreen() {
 
     setIsLoading(true);
     setError(null);
+    setLoadingMessage('Creating magic...');
+    
+    // Simulate dynamic loading messages (since we can't get real-time updates)
+    const loadingMessages = [
+      'Creating magic...',
+      'Mixing ingredients...',
+      'Perfecting the recipe...',
+      'Adding final touches...'
+    ];
+    
+    let messageIndex = 0;
+    const messageInterval = setInterval(() => {
+      messageIndex = (messageIndex + 1) % loadingMessages.length;
+      setLoadingMessage(loadingMessages[messageIndex]);
+    }, 2000);
     
     try {
       // Generate recipe using real API
       console.log('Creating recipe with prompt:', prompt);
       const recipeData = await apiService.generateRecipe({ prompt });
       
+      clearInterval(messageInterval);
       setIsLoading(false);
       
       // Navigate with the actual recipe data
@@ -41,6 +59,7 @@ export default function PromptScreen() {
         }
       });
     } catch (error) {
+      clearInterval(messageInterval);
       console.error('Recipe generation error:', error);
       setIsLoading(false);
       
@@ -86,13 +105,17 @@ export default function PromptScreen() {
         translucent
       />
       
-      {/* Background with subtle gradient */}
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.theme.background,
-        }}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        {/* Background with subtle gradient */}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: theme.colors.theme.background,
+          }}
+        >
         {/* Top Navigation Bar */}
         <View
           style={{
@@ -141,7 +164,7 @@ export default function PromptScreen() {
           </TouchableOpacity>
         </View>
         
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
@@ -149,6 +172,9 @@ export default function PromptScreen() {
             paddingBottom: insets.bottom + theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
+          extraScrollHeight={20}
+          enableOnAndroid={true}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Hero Section */}
           <View
@@ -410,7 +436,7 @@ export default function PromptScreen() {
                 ...theme.shadows.wizard.glow,
               }}
             >
-              {isLoading ? 'Creating Magic...' : 'Generate Recipe'}
+              {isLoading ? loadingMessage : 'Generate Recipe'}
             </Button>
           </View>
 
@@ -487,8 +513,9 @@ export default function PromptScreen() {
               ))}
             </View>
           </View>
-        </ScrollView>
-      </View>
+        </KeyboardAwareScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </>
   );
 }
