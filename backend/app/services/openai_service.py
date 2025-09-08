@@ -67,6 +67,8 @@ CRITICAL INSTRUCTIONS:
 5. Include helpful cooking tips
 6. IMPORTANT: Follow all user preferences provided, but if there are conflicts between different preferences, always prioritize "Additional preferences" over all other settings
 7. INGREDIENT CATEGORIES: Every ingredient MUST use one of these exact categories: {categories_list}
+8. INGREDIENT-USAGE CONSISTENCY: Every food item referenced anywhere in the recipe (title, description, instructions, tips, or serving suggestions like "serve with X") MUST also appear in the "ingredients" array. Do not mention items that are not represented in "ingredients".
+9. OPTIONAL/SERVE-WITH ITEMS: If suggesting a side or garnish (e.g., crusty bread, rice, salad), include it in "ingredients" with an appropriate category from the list above and use an amount like "to serve", "to garnish" or "as needed" and set unit to "N/A".
 
 REQUIRED JSON FORMAT:
 {{
@@ -187,10 +189,119 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                 if not isinstance(ing, dict) or 'name' not in ing or 'amount' not in ing or 'category' not in ing:
                     return False, 'format'
             
+            # Basic cross-check: avoid references to items not in ingredients for common phrases
+            if not self._ingredients_cover_common_references(recipe, ingredients):
+                return False, 'validation'
+
             return True, ''
             
         except Exception:
             return False, 'format'
+
+    def _ingredients_cover_common_references(self, recipe: Dict[str, Any], ingredients: List[Dict[str, Any]]) -> bool:
+        """Best-effort check to ensure common instruction references are represented in ingredients.
+
+        Looks for phrases like "serve with X", "garnish with X", "top with X" and checks that X is present
+        in the ingredient names. This is a heuristic to reduce inconsistencies like suggesting bread without
+        listing it in the grocery list.
+        """
+        try:
+            import re
+
+            # Aggregate text fields to scan
+            texts: List[str] = []
+            if isinstance(recipe.get('description'), str):
+                texts.append(recipe['description'])
+            if isinstance(recipe.get('tips'), list):
+                texts.extend([t for t in recipe['tips'] if isinstance(t, str)])
+            # instructions guaranteed to be list of str by this point
+            texts.extend([t for t in recipe.get('instructions', []) if isinstance(t, str)])
+
+            full_text = "\n".join(texts).lower()
+            ing_names = [str(ing.get('name', '')).lower() for ing in ingredients]
+
+            # Patterns to catch common serving/garnish references
+            patterns = [
+                r"serve(?:\s+with)?\s+([^\.;\n]+)",
+                r"serve\s+over\s+([^\.;\n]+)",
+                r"garnish(?:\s+with)?\s+([^\.;\n]+)",
+                r"top\s+with\s+([^\.;\n]+)",
+                r"alongside\s+([^\.;\n]+)",
+            ]
+
+            referenced_items: List[str] = []
+            for pat in patterns:
+                for m in re.finditer(pat, full_text):
+                    phrase = m.group(1).strip()
+                    # Split on common separators to get individual items
+                    parts = re.split(r",| and | or |/|\\+", phrase)
+                    referenced_items.extend([p.strip() for p in parts if p.strip()])
+
+            # If nothing found, pass
+            if not referenced_items:
+                return True
+
+            # If any referenced item has no fuzzy match in ingredient names, flag validation failure
+            def has_match(ref: str) -> bool:
+                tokens = [t for t in re.split(r"\s+", ref) if t]
+                # Try simple containment against ingredient names
+                for name in ing_names:
+                    # require any non-trivial token to appear
+                    if any(tok in name for tok in tokens if len(tok) > 2):
+                        return True
+                return False
+
+            for ref in referenced_items:
+                if not has_match(ref):
+                    return False
+
+            return True
+        except Exception:
+            # On any parsing error, don't block generation
+            return True
+
+    def _find_missing_references(self, recipe: Dict[str, Any], ingredients: List[Dict[str, Any]]) -> List[str]:
+        """Return a list of referenced items (serve/garnish/top with) that are not covered by ingredients."""
+        try:
+            import re
+            texts: List[str] = []
+            if isinstance(recipe.get('description'), str):
+                texts.append(recipe['description'])
+            if isinstance(recipe.get('tips'), list):
+                texts.extend([t for t in recipe['tips'] if isinstance(t, str)])
+            texts.extend([t for t in recipe.get('instructions', []) if isinstance(t, str)])
+
+            full_text = "\n".join(texts).lower()
+            ing_names = [str(ing.get('name', '')).lower() for ing in ingredients]
+
+            patterns = [
+                r"serve(?:\s+with)?\s+([^\.;\n]+)",
+                r"serve\s+over\s+([^\.;\n]+)",
+                r"garnish(?:\s+with)?\s+([^\.;\n]+)",
+                r"top\s+with\s+([^\.;\n]+)",
+                r"alongside\s+([^\.;\n]+)",
+            ]
+            referenced_items: List[str] = []
+            for pat in patterns:
+                for m in re.finditer(pat, full_text):
+                    phrase = m.group(1).strip()
+                    parts = re.split(r",| and | or |/|\\+", phrase)
+                    referenced_items.extend([p.strip() for p in parts if p.strip()])
+
+            def has_match(ref: str) -> bool:
+                tokens = [t for t in re.split(r"\s+", ref) if t]
+                for name in ing_names:
+                    if any(tok in name for tok in tokens if len(tok) > 2):
+                        return True
+                return False
+
+            missing = []
+            for ref in referenced_items:
+                if not has_match(ref):
+                    missing.append(ref)
+            return missing
+        except Exception:
+            return []
     
     async def generate_recipe(
         self, 
@@ -282,12 +393,20 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                             'retry_message': self._get_retry_message(attempt, error_type) if attempt > 1 else None
                         }
                     else:
-                        # Invalid format - let it retry
+                        # Invalid format or validation - let it retry with helpful guidance
                         if attempt < max_retries:
                             logger.warning(f"Attempt {attempt} failed validation ({error_type}), retrying...")
-                            retry_message = f"Previous response had {error_type} issues. Please fix and provide only valid JSON."
+                            detailed_retry = f"Previous response had {error_type} issues. Please fix and provide only valid JSON."
+                            if error_type == 'validation':
+                                missing = self._find_missing_references(recipe_data.get('recipe', {}), recipe_data.get('ingredients', []))
+                                if missing:
+                                    missing_list = ", ".join(sorted(set(missing)))
+                                    detailed_retry += (
+                                        f" Ensure every item referenced in instructions/tips is present in the 'ingredients' array. "
+                                        f"Missing items detected: {missing_list}. If these are sides or garnishes, include them as ingredients with amount 'to serve' and unit 'N/A' and choose an appropriate category from the provided list."
+                                    )
                             messages.append({"role": "assistant", "content": cleaned_text})
-                            messages.append({"role": "user", "content": retry_message})
+                            messages.append({"role": "user", "content": detailed_retry})
                             continue
                         else:
                             raise ValueError(f"Recipe validation failed after {max_retries} attempts: {error_type}")
