@@ -458,7 +458,7 @@ export default function ProfileScreen() {
                   key={restriction}
                   label={restriction.charAt(0).toUpperCase() + restriction.slice(1).replace('-', ' ')}
                   checked={preferences.dietaryRestrictions.includes(restriction)}
-                  onToggle={() => toggleArrayItem('dietaryRestrictions', restriction)}
+                  onPress={() => toggleArrayItem('dietaryRestrictions', restriction)}
                 />
               ))}
               
@@ -477,7 +477,7 @@ export default function ProfileScreen() {
                     <CheckboxItem
                       label={restriction}
                       checked={true}
-                      onToggle={() => removeCustomItem('dietaryRestrictions', restriction)}
+                      onPress={() => removeCustomItem('dietaryRestrictions', restriction)}
                       style={{ flex: 1 }}
                     />
                     <TouchableOpacity
@@ -528,7 +528,7 @@ export default function ProfileScreen() {
                   key={allergen}
                   label={allergen.charAt(0).toUpperCase() + allergen.slice(1)}
                   checked={preferences.allergens.includes(allergen)}
-                  onToggle={() => toggleArrayItem('allergens', allergen)}
+                  onPress={() => toggleArrayItem('allergens', allergen)}
                 />
               ))}
               
@@ -547,7 +547,7 @@ export default function ProfileScreen() {
                     <CheckboxItem
                       label={allergen}
                       checked={true}
-                      onToggle={() => removeCustomItem('allergens', allergen)}
+                      onPress={() => removeCustomItem('allergens', allergen)}
                       style={{ flex: 1 }}
                     />
                     <TouchableOpacity

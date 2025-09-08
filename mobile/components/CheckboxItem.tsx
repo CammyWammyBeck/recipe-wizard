@@ -108,7 +108,6 @@ export function CheckboxItem({
             fontFamily: theme.typography.fontFamily.body,
             fontWeight: theme.typography.fontWeight.medium,
             color: getTextColor(),
-            textDecorationLine: checked ? 'line-through' : 'none',
           },
           textStyle,
         ]}
