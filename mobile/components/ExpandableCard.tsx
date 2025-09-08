@@ -19,6 +19,7 @@ interface ExpandableCardProps {
   headerStyle?: ViewStyle;
   contentStyle?: ViewStyle;
   onToggle?: (expanded: boolean) => void;
+  compact?: boolean;
 }
 
 export function ExpandableCard({
@@ -31,6 +32,7 @@ export function ExpandableCard({
   headerStyle,
   contentStyle,
   onToggle,
+  compact = false,
 }: ExpandableCardProps) {
   const { theme } = useAppTheme();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -63,7 +65,8 @@ export function ExpandableCard({
           {
             flexDirection: 'row',
             alignItems: 'center',
-            padding: theme.spacing.lg,
+            paddingVertical: compact ? theme.spacing.md : theme.spacing.lg,
+            paddingHorizontal: compact ? theme.spacing.md : theme.spacing.lg,
             backgroundColor: isExpanded 
               ? theme.colors.theme.backgroundSecondary 
               : 'transparent',
@@ -75,18 +78,18 @@ export function ExpandableCard({
         {icon && (
           <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
+              width: compact ? 28 : 40,
+              height: compact ? 28 : 40,
+              borderRadius: compact ? 14 : 20,
               backgroundColor: theme.colors.wizard.primary + '20',
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: theme.spacing.lg,
+              marginRight: compact ? theme.spacing.md : theme.spacing.lg,
             }}
           >
             <MaterialCommunityIcons
               name={icon}
-              size={20}
+              size={compact ? 16 : 20}
               color={theme.colors.wizard.primary}
             />
           </View>
@@ -96,7 +99,9 @@ export function ExpandableCard({
         <View style={{ flex: 1 }}>
           <Text
             style={{
-              fontSize: theme.typography.fontSize.titleLarge,
+              fontSize: compact 
+                ? theme.typography.fontSize.titleMedium 
+                : theme.typography.fontSize.titleLarge,
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.theme.text,
               fontFamily: theme.typography.fontFamily.body,
@@ -109,7 +114,9 @@ export function ExpandableCard({
           {subtitle && (
             <Text
               style={{
-                fontSize: theme.typography.fontSize.bodyMedium,
+                fontSize: compact 
+                  ? theme.typography.fontSize.bodySmall 
+                  : theme.typography.fontSize.bodyMedium,
                 color: theme.colors.theme.textSecondary,
                 fontFamily: theme.typography.fontFamily.body,
               }}
@@ -122,15 +129,15 @@ export function ExpandableCard({
         {/* Chevron */}
         <View
           style={{
-            width: 32,
-            height: 32,
+            width: compact ? 28 : 32,
+            height: compact ? 28 : 32,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
           <MaterialCommunityIcons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={24}
+            size={compact ? 20 : 24}
             color={theme.colors.theme.textTertiary}
           />
         </View>
@@ -141,7 +148,7 @@ export function ExpandableCard({
         <View
           style={[
             {
-              padding: theme.spacing.lg,
+              padding: compact ? theme.spacing.md : theme.spacing.lg,
               paddingTop: 0,
             },
             contentStyle,

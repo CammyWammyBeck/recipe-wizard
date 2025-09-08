@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiService } from '../services/api';
 import { PreferencesService } from '../services/preferences';
 import { UserPreferences } from '../types/api';
+import {
+  getRandomHeroSubtitle,
+  getRandomHeroTitle,
+  getRandomSuggestion,
+  getRandomSuggestions,
+} from '../constants/copy';
 
 export default function PromptScreen() {
   const { theme, isDark, setThemeMode, themeMode } = useAppTheme();
@@ -107,14 +113,39 @@ export default function PromptScreen() {
     router.push('/history');
   };
 
-  const suggestionPrompts = [
-    { text: "Quick pasta dinner for two", icon: "pasta" },
-    { text: "Healthy breakfast with oats", icon: "bowl-mix" }, 
-    { text: "Comfort food for a rainy day", icon: "weather-rainy" },
-    { text: "Spicy vegetarian curry", icon: "chili-hot" },
-    { text: "Easy dessert with chocolate", icon: "cupcake" },
-    { text: "Mediterranean lunch bowl", icon: "food-variant" }
-  ];
+  // Fresh randomized copy and suggestions per mount
+  const [heroTitle, setHeroTitle] = useState<string>('What shall we cook today?');
+  const [heroSubtitle, setHeroSubtitle] = useState<string>(
+    "Tell me what you're craving and I'll create the perfect recipe for you ✨"
+  );
+  const [placeholder, setPlaceholder] = useState<string>('');
+  const [suggestionPrompts, setSuggestionPrompts] = useState<
+    { text: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[]
+  >([]);
+
+  const suggestionIcons = useMemo<
+    ReadonlyArray<keyof typeof MaterialCommunityIcons.glyphMap>
+  >(() => (
+    ['lightbulb-on', 'chef-hat', 'bowl-mix', 'food-variant', 'silverware-fork-knife', 'fire', 'leaf', 'cookie']
+  ), []);
+
+  const refreshDynamicCopy = () => {
+    setHeroTitle(getRandomHeroTitle());
+    setHeroSubtitle(getRandomHeroSubtitle());
+
+    const texts = getRandomSuggestions(8);
+    const items = texts.map((t, idx) => ({
+      text: t,
+      icon: suggestionIcons[idx % suggestionIcons.length],
+    }));
+    setSuggestionPrompts(items);
+
+    setPlaceholder(texts[Math.floor(Math.random() * texts.length)] || getRandomSuggestion());
+  };
+
+  useEffect(() => {
+    refreshDynamicCopy();
+  }, [suggestionIcons]);
 
   const handleSuggestionPress = (suggestion: string) => {
     setPrompt(suggestion);
@@ -300,7 +331,7 @@ export default function PromptScreen() {
                 lineHeight: theme.typography.fontSize.displaySmall * 1.2,
               }}
             >
-              What shall we{'\n'}cook today?
+              {heroTitle}
             </Text>
             
             <Text
@@ -312,7 +343,7 @@ export default function PromptScreen() {
                 lineHeight: theme.typography.fontSize.bodyLarge * 1.4,
               }}
             >
-              Tell me what you're craving and I'll create{'\n'}the perfect recipe for you ✨
+              {heroSubtitle}
             </Text>
           </View>
 
@@ -376,7 +407,7 @@ export default function PromptScreen() {
               )}
 
               <TextInput
-                placeholder="Something creamy and comforting with chicken..."
+                placeholder={placeholder || 'What sounds good today?'}
                 value={prompt}
                 onChangeText={(text) => {
                   setPrompt(text);
@@ -466,7 +497,8 @@ export default function PromptScreen() {
             subtitle={`${servings} servings${difficulty ? ` • ${difficulty}` : ''}`}
             icon="tune"
             defaultExpanded={false}
-            style={{ marginBottom: theme.spacing['3xl'] }}
+            compact
+            style={{ marginBottom: theme.spacing.xl }}
           >
             {/* Servings selector */}
             <View
@@ -675,7 +707,7 @@ export default function PromptScreen() {
                     }}
                   >
                     <MaterialCommunityIcons
-                      name={suggestion.icon as any}
+                      name={suggestion.icon}
                       size={20}
                       color={theme.colors.wizard.primary}
                     />
@@ -700,6 +732,16 @@ export default function PromptScreen() {
                   />
                 </TouchableOpacity>
               ))}
+              <View style={{ marginTop: theme.spacing.lg }}>
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  leftIcon="refresh"
+                  onPress={refreshDynamicCopy}
+                >
+                  Refresh ideas
+                </Button>
+              </View>
             </View>
           </View>
         </KeyboardAwareScrollView>
