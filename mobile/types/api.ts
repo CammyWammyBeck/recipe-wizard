@@ -22,6 +22,11 @@ export interface APIRecipe {
 export interface RecipeGenerationRequest {
   prompt: string;
   userId?: string; // For authenticated users
+  // Optional per-request overrides that do not persist
+  overrides?: {
+    defaultServings?: number;
+    preferredDifficulty?: 'easy' | 'medium' | 'hard';
+  };
 }
 
 export interface RecipeGenerationResponse {

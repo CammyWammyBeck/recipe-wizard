@@ -56,11 +56,23 @@ class APIService {
     try {
       // Load user preferences and send them to backend for LLM processing
       const preferences = await PreferencesService.loadPreferences();
-      
-      // Send preferences separately - let backend/LLM handle all processing
+
+      // Merge prompt-level overrides without persisting changes
+      const { overrides, ...rest } = request as RecipeGenerationRequest & { overrides?: any };
+      const mergedPreferences = {
+        ...preferences,
+        ...(overrides?.defaultServings !== undefined
+          ? { defaultServings: overrides.defaultServings }
+          : {}),
+        ...(overrides?.preferredDifficulty !== undefined
+          ? { preferredDifficulty: overrides.preferredDifficulty }
+          : {}),
+      };
+
+      // Final payload sent to backend
       const enhancedRequest = {
-        ...request,
-        preferences: preferences,
+        ...rest,
+        preferences: mergedPreferences,
       };
 
       const url = `${this.baseUrl}/api/recipes/generate`;

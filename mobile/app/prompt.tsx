@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { Button, TextInput, useAppTheme } from '../components';
+import { Button, TextInput, useAppTheme, ExpandableCard } from '../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiService } from '../services/api';
+import { PreferencesService } from '../services/preferences';
+import { UserPreferences } from '../types/api';
 
 export default function PromptScreen() {
   const { theme, isDark, setThemeMode, themeMode } = useAppTheme();
@@ -16,6 +18,17 @@ export default function PromptScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Creating magic...');
   const [error, setError] = useState<string | null>(null);
+  const [servings, setServings] = useState<number>(4);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | undefined>(undefined);
+
+  // Initialize per-recipe overrides from saved preferences
+  useEffect(() => {
+    (async () => {
+      const prefs: UserPreferences = await PreferencesService.loadPreferences();
+      setServings(prefs.defaultServings || 4);
+      setDifficulty(prefs.preferredDifficulty);
+    })();
+  }, []);
 
   const handleCreateRecipe = async () => {
     if (!prompt.trim()) {
@@ -44,7 +57,13 @@ export default function PromptScreen() {
     try {
       // Generate recipe using real API
       console.log('Creating recipe with prompt:', prompt);
-      const recipeData = await apiService.generateRecipe({ prompt });
+      const recipeData = await apiService.generateRecipe({
+        prompt,
+        overrides: {
+          defaultServings: servings,
+          preferredDifficulty: difficulty,
+        },
+      });
       
       clearInterval(messageInterval);
       setIsLoading(false);
@@ -440,6 +459,156 @@ export default function PromptScreen() {
               </View>
             </View>
           )}
+
+          {/* Recipe Options (non-persistent, collapsed by default) */}
+          <ExpandableCard
+            title="Recipe Options"
+            subtitle={`${servings} servings${difficulty ? ` • ${difficulty}` : ''}`}
+            icon="tune"
+            defaultExpanded={false}
+            style={{ marginBottom: theme.spacing['3xl'] }}
+          >
+            {/* Servings selector */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: theme.spacing.lg,
+                backgroundColor: theme.colors.theme.backgroundSecondary,
+                borderRadius: theme.borderRadius.xl,
+                paddingHorizontal: theme.spacing.lg,
+                paddingVertical: theme.spacing.md,
+                borderWidth: 1,
+                borderColor: theme.colors.theme.borderLight,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="account-group" size={18} color={theme.colors.theme.textSecondary} />
+                <Text
+                  style={{
+                    marginLeft: theme.spacing.sm,
+                    fontSize: theme.typography.fontSize.bodyLarge,
+                    color: theme.colors.theme.text,
+                    fontFamily: theme.typography.fontFamily.body,
+                  }}
+                >
+                  Servings
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setServings(prev => Math.max(1, prev - 1))}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.colors.theme.surface,
+                    borderWidth: 1,
+                    borderColor: theme.colors.theme.border,
+                    marginRight: theme.spacing.md,
+                  }}
+                >
+                  <MaterialCommunityIcons name="minus" size={18} color={theme.colors.theme.text} />
+                </TouchableOpacity>
+                <Text
+                  style={{
+                    minWidth: 36,
+                    textAlign: 'center',
+                    fontSize: theme.typography.fontSize.titleMedium,
+                    color: theme.colors.theme.text,
+                    fontFamily: theme.typography.fontFamily.body,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                  }}
+                >
+                  {servings}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setServings(prev => Math.min(24, prev + 1))}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.colors.wizard.primary + '25',
+                    marginLeft: theme.spacing.md,
+                  }}
+                >
+                  <MaterialCommunityIcons name="plus" size={18} color={theme.colors.wizard.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Difficulty selector */}
+            <View
+              style={{
+                backgroundColor: theme.colors.theme.backgroundSecondary,
+                borderRadius: theme.borderRadius.xl,
+                padding: theme.spacing.sm,
+                borderWidth: 1,
+                borderColor: theme.colors.theme.borderLight,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: theme.typography.fontSize.bodyLarge,
+                  color: theme.colors.theme.text,
+                  fontFamily: theme.typography.fontFamily.body,
+                  marginBottom: theme.spacing.sm,
+                  marginLeft: theme.spacing.sm,
+                }}
+              >
+                Difficulty
+              </Text>
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                {(['easy', 'medium', 'hard'] as const).map(level => {
+                  const active = difficulty === level;
+                  return (
+                    <TouchableOpacity
+                      key={level}
+                      onPress={() => setDifficulty(level)}
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: theme.spacing.md,
+                        borderRadius: theme.borderRadius.lg,
+                        backgroundColor: active
+                          ? theme.colors.wizard.primary + '25'
+                          : theme.colors.theme.surface,
+                        borderWidth: 1,
+                        borderColor: active
+                          ? theme.colors.wizard.primary
+                          : theme.colors.theme.border,
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={level === 'easy' ? 'star-outline' : level === 'medium' ? 'star-half-full' : 'star'}
+                        size={16}
+                        color={active ? theme.colors.wizard.primary : theme.colors.theme.textSecondary}
+                        style={{ marginRight: theme.spacing.xs }}
+                      />
+                      <Text
+                        style={{
+                          fontSize: theme.typography.fontSize.bodyMedium,
+                          color: active ? theme.colors.wizard.primary : theme.colors.theme.text,
+                          fontFamily: theme.typography.fontFamily.body,
+                          fontWeight: active ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium,
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </ExpandableCard>
 
           {/* Enhanced Create Button */}
           <View style={{ marginBottom: theme.spacing['3xl'] }}>
