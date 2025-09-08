@@ -198,6 +198,7 @@ export function IngredientsSection({
                     label={formatIngredientLabel(ingredient)}
                     checked={ingredient.checked || false}
                     onPress={() => handleIngredientToggle(ingredient.id, !ingredient.checked)}
+                    strikeThroughOnCheck
                     style={{
                       backgroundColor: ingredient.checked 
                         ? categoryConfig.color + '10'

@@ -17,6 +17,7 @@ interface CheckboxItemProps {
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  strikeThroughOnCheck?: boolean;
 }
 
 export function CheckboxItem({
@@ -26,6 +27,7 @@ export function CheckboxItem({
   disabled = false,
   style,
   textStyle,
+  strikeThroughOnCheck = false,
 }: CheckboxItemProps) {
   const { theme, isDark } = useAppTheme();
   
@@ -108,6 +110,7 @@ export function CheckboxItem({
             fontFamily: theme.typography.fontFamily.body,
             fontWeight: theme.typography.fontWeight.medium,
             color: getTextColor(),
+            textDecorationLine: strikeThroughOnCheck && checked ? 'line-through' : 'none',
           },
           textStyle,
         ]}
