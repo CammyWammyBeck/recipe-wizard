@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Button, TextInput, useAppTheme } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -64,6 +63,7 @@ export default function SignInScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
       >
         <View
           style={{
@@ -103,16 +103,14 @@ export default function SignInScreen() {
           <View style={{ width: 40 }} />
         </View>
         
-        <KeyboardAwareScrollView
+        <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: insets.bottom + theme.spacing.xl + 200,
+            paddingBottom: insets.bottom + theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
-          extraScrollHeight={100}
-          enableOnAndroid={true}
           keyboardShouldPersistTaps="handled"
         >
           {/* Hero Section */}
@@ -337,7 +335,7 @@ export default function SignInScreen() {
               Sign Up
             </Button>
           </View>
-        </KeyboardAwareScrollView>
+        </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </>

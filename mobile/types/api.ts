@@ -29,6 +29,12 @@ export interface RecipeGenerationRequest {
   };
 }
 
+export interface RecipeModificationRequest {
+  recipeId: string;
+  modificationPrompt: string;
+  userId?: string; // For authenticated users
+}
+
 export interface RecipeGenerationResponse {
   id: string; // Generated recipe ID
   recipe: APIRecipe;

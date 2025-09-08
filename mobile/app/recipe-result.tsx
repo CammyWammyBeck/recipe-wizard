@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StatusBar,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -13,6 +16,9 @@ import { useAppTheme } from '../constants/ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { IngredientsSection, Ingredient } from '../components/IngredientsSection';
 import { RecipeSection, Recipe } from '../components/RecipeSection';
+import { ExpandableCard } from '../components/ExpandableCard';
+import { TextInput } from '../components/TextInput';
+import { Button } from '../components/Button';
 import { RecipeGenerationResponse } from '../types/api';
 import { apiService } from '../services/api';
 
@@ -28,6 +34,8 @@ export default function RecipeResultScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [modificationText, setModificationText] = useState('');
+  const [isModifying, setIsModifying] = useState(false);
 
   // Get recipe data from route params or load from API
   useEffect(() => {
@@ -121,6 +129,32 @@ export default function RecipeResultScreen() {
     }
   };
 
+  const handleModifyRecipe = async () => {
+    if (!recipeData || !modificationText.trim()) return;
+    
+    try {
+      setIsModifying(true);
+      
+      // Call the recipe modification API
+      const modifiedRecipe = await apiService.modifyRecipe(recipeData.id, modificationText.trim());
+      
+      // Update the current recipe data with the modified version
+      setRecipeData(modifiedRecipe);
+      
+      // Clear the modification text
+      setModificationText('');
+      
+      // Show success message
+      Alert.alert('Recipe Updated', 'Your recipe has been successfully modified!');
+      
+    } catch (error) {
+      console.error('Failed to modify recipe:', error);
+      Alert.alert('Error', 'Failed to modify the recipe. Please try again.');
+    } finally {
+      setIsModifying(false);
+    }
+  };
+
   // Loading state
   if (isLoading || !recipeData) {
     return (
@@ -163,144 +197,151 @@ export default function RecipeResultScreen() {
         translucent
       />
       
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.theme.background,
-        }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        {/* Header */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingTop: insets.top + theme.spacing.md,
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: theme.spacing.lg,
+            flex: 1,
+            backgroundColor: theme.colors.theme.background,
           }}
         >
-          <TouchableOpacity
-            onPress={handleBack}
+          {/* Header */}
+          <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: theme.colors.theme.backgroundSecondary,
+              flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: theme.spacing.lg,
+              paddingTop: insets.top + theme.spacing.md,
+              paddingHorizontal: theme.spacing.xl,
+              paddingBottom: theme.spacing.lg,
             }}
           >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={theme.colors.theme.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <View style={{ flex: 1 }}>
-            {(params.fromHistory || params.fromSavedRecipes) && (
-              <Text
-                style={{
-                  fontSize: theme.typography.fontSize.bodySmall,
-                  color: theme.colors.wizard.primary,
-                  fontFamily: theme.typography.fontFamily.body,
-                  marginBottom: theme.spacing.xs,
-                }}
-              >
-                {params.fromSavedRecipes ? 'From Saved Recipes' : 'From History'}
-              </Text>
-            )}
-            <Text
+            <TouchableOpacity
+              onPress={handleBack}
               style={{
-                fontSize: theme.typography.fontSize.titleMedium,
-                fontWeight: theme.typography.fontWeight.semibold,
-                color: theme.colors.theme.text,
-                fontFamily: theme.typography.fontFamily.body,
-                marginBottom: theme.spacing.xs,
-                lineHeight: theme.typography.fontSize.titleMedium * 1.2,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: theme.colors.theme.backgroundSecondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: theme.spacing.lg,
               }}
-              numberOfLines={2}
             >
-              {recipeData.recipe.title}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text
-                style={{
-                  fontSize: theme.typography.fontSize.bodyMedium,
-                  color: theme.colors.theme.textSecondary,
-                  fontFamily: theme.typography.fontFamily.body,
-                }}
-              >
-                Ready in {(recipeData.recipe.prepTime || 0) + (recipeData.recipe.cookTime || 0)} minutes
-              </Text>
-              {recipeData.retryCount && recipeData.retryCount > 0 && (
-                <View style={{
-                  marginLeft: theme.spacing.md,
-                  backgroundColor: theme.colors.wizard.primaryLight + '20',
-                  paddingHorizontal: theme.spacing.sm,
-                  paddingVertical: theme.spacing.xs,
-                  borderRadius: theme.borderRadius.full,
-                }}>
-                  <Text style={{
+              <MaterialCommunityIcons
+                name="arrow-left"
+                size={24}
+                color={theme.colors.theme.textSecondary}
+              />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1 }}>
+              {(params.fromHistory || params.fromSavedRecipes) && (
+                <Text
+                  style={{
                     fontSize: theme.typography.fontSize.bodySmall,
                     color: theme.colors.wizard.primary,
                     fontFamily: theme.typography.fontFamily.body,
-                  }}>
-                    Perfected ✨
-                  </Text>
-                </View>
+                    marginBottom: theme.spacing.xs,
+                  }}
+                >
+                  {params.fromSavedRecipes ? 'From Saved Recipes' : 'From History'}
+                </Text>
               )}
+              <Text
+                style={{
+                  fontSize: theme.typography.fontSize.titleMedium,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  color: theme.colors.theme.text,
+                  fontFamily: theme.typography.fontFamily.body,
+                  marginBottom: theme.spacing.xs,
+                  lineHeight: theme.typography.fontSize.titleMedium * 1.2,
+                }}
+                numberOfLines={2}
+              >
+                {recipeData.recipe.title}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text
+                  style={{
+                    fontSize: theme.typography.fontSize.bodyMedium,
+                    color: theme.colors.theme.textSecondary,
+                    fontFamily: theme.typography.fontFamily.body,
+                  }}
+                >
+                  Ready in {(recipeData.recipe.prepTime || 0) + (recipeData.recipe.cookTime || 0)} minutes
+                </Text>
+                {recipeData.retryCount && recipeData.retryCount > 0 && (
+                  <View style={{
+                    marginLeft: theme.spacing.md,
+                    backgroundColor: theme.colors.wizard.primaryLight + '20',
+                    paddingHorizontal: theme.spacing.sm,
+                    paddingVertical: theme.spacing.xs,
+                    borderRadius: theme.borderRadius.full,
+                  }}>
+                    <Text style={{
+                      fontSize: theme.typography.fontSize.bodySmall,
+                      color: theme.colors.wizard.primary,
+                      fontFamily: theme.typography.fontFamily.body,
+                    }}>
+                      Perfected ✨
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Save/Star Button */}
+            <TouchableOpacity
+              onPress={handleSaveToggle}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: isSaved 
+                  ? theme.colors.wizard.primary + '20' 
+                  : theme.colors.theme.backgroundSecondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: theme.spacing.md,
+              }}
+            >
+              <MaterialCommunityIcons
+                name={isSaved ? "star" : "star-outline"}
+                size={24}
+                color={isSaved ? theme.colors.wizard.primary : theme.colors.theme.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {/* Sparkle decoration */}
+            <View
+              style={{
+                position: 'relative',
+                marginLeft: theme.spacing.md,
+              }}
+            >
+              <MaterialCommunityIcons
+                name="star-four-points"
+                size={16}
+                color={theme.colors.wizard.accent}
+                style={{ opacity: 0.7 }}
+              />
             </View>
           </View>
 
-          {/* Save/Star Button */}
-          <TouchableOpacity
-            onPress={handleSaveToggle}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: isSaved 
-                ? theme.colors.wizard.primary + '20' 
-                : theme.colors.theme.backgroundSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginLeft: theme.spacing.md,
+          {/* Content */}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingHorizontal: theme.spacing.xl,
+              paddingBottom: insets.bottom + theme.spacing.xl,
+              gap: theme.spacing.xl,
             }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <MaterialCommunityIcons
-              name={isSaved ? "star" : "star-outline"}
-              size={24}
-              color={isSaved ? theme.colors.wizard.primary : theme.colors.theme.textSecondary}
-            />
-          </TouchableOpacity>
-
-          {/* Sparkle decoration */}
-          <View
-            style={{
-              position: 'relative',
-              marginLeft: theme.spacing.md,
-            }}
-          >
-            <MaterialCommunityIcons
-              name="star-four-points"
-              size={16}
-              color={theme.colors.wizard.accent}
-              style={{ opacity: 0.7 }}
-            />
-          </View>
-        </View>
-
-        {/* Content */}
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: insets.bottom + theme.spacing.xl,
-            gap: theme.spacing.xl,
-          }}
-        >
           {/* Ingredients Section */}
           <IngredientsSection 
             ingredients={ingredients}
@@ -309,8 +350,54 @@ export default function RecipeResultScreen() {
 
           {/* Recipe Section */}
           <RecipeSection recipe={recipeData.recipe} />
-        </ScrollView>
-      </View>
+
+          {/* Recipe Modification Section */}
+          <ExpandableCard
+            title="Modify Recipe"
+            subtitle="Tell me what you'd like to change"
+            icon="pencil"
+            defaultExpanded={false}
+          >
+            <Text
+              style={{
+                fontSize: theme.typography.fontSize.bodyMedium,
+                color: theme.colors.theme.textSecondary,
+                fontFamily: theme.typography.fontFamily.body,
+                marginBottom: theme.spacing.lg,
+                lineHeight: theme.typography.fontSize.bodyMedium * 1.4,
+              }}
+            >
+              I'll adjust the recipe based on your request while keeping everything else the same.
+            </Text>
+
+            <TextInput
+              placeholder="e.g., make it vegetarian, reduce salt, add more spice, use chicken instead of beef..."
+              value={modificationText}
+              onChangeText={setModificationText}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              style={{
+                height: 100,
+                paddingTop: theme.spacing.md,
+              }}
+            />
+
+            <View style={{ marginTop: theme.spacing.lg }} />
+
+            <Button
+              onPress={handleModifyRecipe}
+              variant="primary"
+              disabled={!modificationText.trim() || isModifying}
+              loading={isModifying}
+              leftIcon="magic-staff"
+            >
+              {isModifying ? "Modifying Recipe..." : "Update Recipe"}
+            </Button>
+          </ExpandableCard>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </>
   );
 }

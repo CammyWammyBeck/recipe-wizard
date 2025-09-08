@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../constants/ThemeProvider';
 import { SavedRecipeData } from '../types/api';
@@ -64,6 +63,7 @@ export default function HistoryScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
       >
         <View
           style={{
@@ -143,7 +143,7 @@ export default function HistoryScreen() {
           </View>
 
           {/* Content */}
-          <KeyboardAwareScrollView
+          <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{
               paddingHorizontal: theme.spacing.xl,
@@ -162,7 +162,7 @@ export default function HistoryScreen() {
 
             {/* All History Section */}
             <AllHistorySection />
-          </KeyboardAwareScrollView>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </>

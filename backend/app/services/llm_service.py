@@ -105,6 +105,31 @@ class LLMService:
         
         # Try LLM generation
         return await self.generate_recipe(request, user)
+    
+    async def modify_recipe_with_fallback(
+        self,
+        original_recipe,
+        original_ingredients,
+        modification_prompt: str,
+        user: Optional[User] = None,
+        preferences: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Modify an existing recipe using LLM with fallback error handling
+        """
+        # Check if OpenAI is available
+        if not await self.check_llm_connection():
+            logger.error("OpenAI service is not available")
+            raise ConnectionError("Unable to connect to recipe modification service. Please try again later.")
+        
+        # Generate modified recipe using OpenAI service
+        return await self.openai_service.modify_recipe(
+            original_recipe,
+            original_ingredients, 
+            modification_prompt,
+            user,
+            preferences
+        )
 
 # Global LLM service instance
 llm_service = LLMService()

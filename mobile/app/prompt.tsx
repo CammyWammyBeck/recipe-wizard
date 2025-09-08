@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Button, TextInput, useAppTheme, ExpandableCard } from '../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiService } from '../services/api';
@@ -162,6 +161,7 @@ export default function PromptScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
       >
         {/* Background with subtle gradient */}
         <View
@@ -236,14 +236,12 @@ export default function PromptScreen() {
           </TouchableOpacity>
         </View>
         
-        <KeyboardAwareScrollView
+        <ScrollView
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: insets.bottom + theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
-          extraScrollHeight={20}
-          enableOnAndroid={true}
           keyboardShouldPersistTaps="handled"
         >
           {/* Hero Section */}
@@ -744,7 +742,7 @@ export default function PromptScreen() {
               </View>
             </View>
           </View>
-        </KeyboardAwareScrollView>
+        </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </>

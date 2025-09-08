@@ -109,6 +109,12 @@ class RecipeGenerationResponse(BaseModel):
     generatedAt: str  # ISO timestamp
     userPrompt: str
 
+class RecipeModificationRequest(BaseModel):
+    """Schema for recipe modification requests"""
+    recipeId: str = Field(..., description="ID of the recipe to modify")
+    modificationPrompt: str = Field(..., min_length=3, max_length=1000, description="What to change about the recipe")
+    preferences: Optional[Dict[str, Any]] = None  # User preferences for context
+
 # Saved Recipe Schemas
 class SavedRecipeCreate(BaseModel):
     """Schema for saving recipes"""

@@ -472,6 +472,263 @@ DIFFICULTY LEVELS: easy, medium, hard"""
             context.append(f"ADDITIONAL PREFERENCES (override other settings if needed): {preferences['additionalPreferences'].strip()}")
         
         return f"\n\nUser Preferences:\n" + "\n".join(f"• {item}" for item in context) if context else ""
+    
+    def create_recipe_modification_system_prompt(self, user_categories: Optional[List[str]] = None) -> str:
+        """Create the system prompt for recipe modification"""
+        
+        if user_categories and len(user_categories) > 0:
+            categories_list = ", ".join(user_categories)
+        else:
+            raise ValueError("No grocery categories provided. User preferences must include grocery categories for recipe modification.")
+        
+        return f"""You are RecipeWizard, an expert chef and recipe modifier. You MUST modify the given original recipe based on the user's specific change request while keeping everything else exactly the same.
+
+CRITICAL MODIFICATION INSTRUCTIONS:
+1. Always respond with ONLY valid JSON in the exact format specified below
+2. Do not include any text before or after the JSON
+3. PRESERVE EVERYTHING POSSIBLE: Only change what the user specifically requests
+4. Keep the original recipe structure, cooking methods, and overall character
+5. Maintain ingredient proportions and cooking times unless modification requires changes
+6. If user requests a substitution, replace only that specific ingredient
+7. If user requests dietary changes, modify only ingredients that conflict with the diet
+8. If user requests flavor changes, adjust only seasonings/flavorings that affect that aspect
+9. IMPORTANT: Follow all user preferences provided, prioritizing modification request over general preferences
+10. INGREDIENT CATEGORIES: Every ingredient MUST use one of these exact categories: {categories_list}
+11. INGREDIENT-USAGE CONSISTENCY: Every food item referenced anywhere in the recipe (title, description, instructions, tips, or serving suggestions like "serve with X") MUST also appear in the "ingredients" array. Do not mention items that are not represented in "ingredients".
+12. OPTIONAL/SERVE-WITH ITEMS: If suggesting a side or garnish (e.g., crusty bread, rice, salad), include it in "ingredients" with an appropriate category from the list above and use an amount like "to serve", "to garnish" or "as needed" and set unit to "N/A".
+
+MODIFICATION APPROACH:
+- For ingredient substitutions: Replace only the specified ingredient(s)
+- For dietary restrictions: Change only conflicting ingredients to compliant alternatives
+- For spice/flavor adjustments: Modify only seasonings and flavor components
+- For cooking method changes: Adjust only the specified cooking technique
+- For texture changes: Modify only ingredients/techniques affecting texture
+- For portion changes: Scale ingredients proportionally
+
+REQUIRED JSON FORMAT:
+{{
+  "recipe": {{
+    "title": "Modified Recipe Name (only change if modification affects the dish identity)",
+    "description": "Brief description (preserve original unless modification changes it)",
+    "instructions": ["Step 1", "Step 2", "..."],
+    "prepTime": 15,
+    "cookTime": 30,
+    "servings": 4,
+    "difficulty": "easy",
+    "tips": ["Tip 1", "Tip 2"]
+  }},
+  "ingredients": [
+    {{
+      "name": "ingredient name",
+      "amount": "1",
+      "unit": "cup",
+      "category": "MUST_BE_FROM_THIS_LIST: {categories_list}"
+    }}
+  ]
+}}
+
+INGREDIENT MEASUREMENT RULES:
+- For measurable quantities, use specific amounts and units (e.g., "2", "cups")
+- For taste-based ingredients (salt, pepper, spices), use descriptive amounts like "to taste", "pinch", "dash" and set unit to "N/A"
+- For garnishes or optional additions, use amounts like "to garnish", "as needed" and set unit to "N/A"
+- NEVER use "N/A" as the amount - always provide a descriptive amount
+
+DIFFICULTY LEVELS: easy, medium, hard"""
+
+    def create_recipe_modification_messages(
+        self, 
+        original_recipe,
+        original_ingredients,
+        modification_prompt: str,
+        user_preferences: Optional[str] = None, 
+        user_categories: Optional[List[str]] = None
+    ) -> List[Dict[str, str]]:
+        """Create OpenAI messages for recipe modification"""
+        
+        system_prompt = self.create_recipe_modification_system_prompt(user_categories)
+        
+        # Format the original recipe data for the LLM
+        original_recipe_json = {
+            "recipe": {
+                "title": original_recipe.title,
+                "description": original_recipe.description or "",
+                "instructions": original_recipe.instructions,
+                "prepTime": original_recipe.prep_time,
+                "cookTime": original_recipe.cook_time,
+                "servings": original_recipe.servings,
+                "difficulty": original_recipe.difficulty,
+                "tips": original_recipe.tips or []
+            },
+            "ingredients": [
+                {
+                    "name": ing.name,
+                    "amount": ing.amount,
+                    "unit": ing.unit or "",
+                    "category": ing.category
+                }
+                for ing in original_ingredients
+            ]
+        }
+        
+        # Build user message with original recipe and modification request
+        user_message = f"""ORIGINAL RECIPE TO MODIFY:
+{json.dumps(original_recipe_json, indent=2)}
+
+MODIFICATION REQUEST: {modification_prompt}
+
+INSTRUCTIONS:
+- Keep everything from the original recipe exactly the same EXCEPT what the modification specifically requests
+- Only change what is necessary to fulfill the modification request
+- Preserve the cooking method, timing, and overall recipe structure unless the modification requires changes
+- Maintain ingredient proportions unless modification specifically affects them"""
+        
+        if user_preferences:
+            user_message += f"\n\nUser Preferences (secondary to modification request):{user_preferences}"
+        
+        user_message += "\n\nGenerate the modified recipe with ONLY valid JSON response:"
+        
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ]
+    
+    async def modify_recipe(
+        self, 
+        original_recipe,
+        original_ingredients,
+        modification_prompt: str,
+        user: Optional[User] = None,
+        preferences: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Modify an existing recipe using OpenAI API with the original recipe as context"""
+        start_time = time.time()
+        max_retries = 3
+        
+        try:
+            # Get user preferences - prioritize request preferences over database
+            user_preferences = None
+            user_categories = None
+            
+            if preferences:
+                logger.info("Using preferences from modification request")
+                user_categories = preferences.get('groceryCategories', [])
+                user_preferences = self._generate_preference_context_from_request(preferences)
+                logger.info(f"Modification request categories: {user_categories}")
+                
+            elif user:
+                logger.info(f"Using database preferences for user {user.email}")
+                user_preferences = user.get_preference_context()
+                user_categories = user.grocery_categories
+                logger.info(f"Database categories: {user_categories}")
+                
+            else:
+                logger.info("No user or preferences provided for modification")
+            
+            # Create the messages with original recipe context
+            messages = self.create_recipe_modification_messages(
+                original_recipe,
+                original_ingredients,
+                modification_prompt, 
+                user_preferences,
+                user_categories
+            )
+            
+            logger.info(f"Modifying recipe '{original_recipe.title}' with request: {modification_prompt[:100]}...")
+            
+            for attempt in range(1, max_retries + 1):
+                try:
+                    # Call OpenAI API
+                    response: ChatCompletion = self.client.chat.completions.create(
+                        model=self.default_model,
+                        messages=messages,
+                        temperature=0.3,  # Lower temperature for more consistent modifications
+                        max_tokens=2000,
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    generation_time = int((time.time() - start_time) * 1000)
+                    
+                    # Extract and clean the generated text
+                    generated_text = response.choices[0].message.content.strip()
+                    cleaned_text = self._simple_json_fix(generated_text)
+                    
+                    logger.info(f"OpenAI modified recipe in {generation_time}ms (attempt {attempt})")
+                    
+                    # Parse and validate JSON
+                    recipe_data = json.loads(cleaned_text)
+                    is_valid, error_type = self._validate_recipe_data(recipe_data)
+                    
+                    if is_valid:
+                        # Add default values for optional fields
+                        recipe = recipe_data['recipe']
+                        recipe.setdefault('description', '')
+                        recipe.setdefault('prepTime', None)
+                        recipe.setdefault('cookTime', None)
+                        recipe.setdefault('servings', 4)
+                        recipe.setdefault('difficulty', 'medium')
+                        recipe.setdefault('tips', [])
+                        
+                        # Ensure instructions is a list
+                        if isinstance(recipe['instructions'], str):
+                            recipe['instructions'] = [recipe['instructions']]
+                        
+                        # Add default unit for ingredients
+                        for ing in recipe_data['ingredients']:
+                            ing.setdefault('unit', '')
+                        
+                        return {
+                            'recipe_data': recipe_data,
+                            'generation_time_ms': generation_time,
+                            'model': self.default_model,
+                            'raw_response': generated_text,
+                            'token_count': response.usage.completion_tokens if response.usage else 0,
+                            'prompt_tokens': response.usage.prompt_tokens if response.usage else 0,
+                            'retry_count': attempt - 1,
+                            'retry_message': self._get_retry_message(attempt, error_type) if attempt > 1 else None,
+                            'modification_prompt': modification_prompt,
+                            'original_recipe_id': original_recipe.id
+                        }
+                    else:
+                        # Invalid format or validation - let it retry with helpful guidance
+                        if attempt < max_retries:
+                            logger.warning(f"Modification attempt {attempt} failed validation ({error_type}), retrying...")
+                            detailed_retry = f"Previous response had {error_type} issues. Please fix and provide only valid JSON that preserves the original recipe structure."
+                            if error_type == 'validation':
+                                missing = self._find_missing_references(recipe_data.get('recipe', {}), recipe_data.get('ingredients', []))
+                                if missing:
+                                    missing_list = ", ".join(sorted(set(missing)))
+                                    detailed_retry += (
+                                        f" Ensure every item referenced in instructions/tips is present in the 'ingredients' array. "
+                                        f"Missing items detected: {missing_list}. If these are sides or garnishes, include them as ingredients with amount 'to serve' and unit 'N/A' and choose an appropriate category from the provided list."
+                                    )
+                            messages.append({"role": "assistant", "content": cleaned_text})
+                            messages.append({"role": "user", "content": detailed_retry})
+                            continue
+                        else:
+                            raise ValueError(f"Recipe modification validation failed after {max_retries} attempts: {error_type}")
+                
+                except json.JSONDecodeError as e:
+                    if attempt < max_retries:
+                        logger.warning(f"JSON parsing failed on modification attempt {attempt}, retrying...")
+                        retry_message = "Previous response was not valid JSON. Please provide only valid JSON format that preserves the original recipe structure."
+                        messages.append({"role": "user", "content": retry_message})
+                        continue
+                    else:
+                        raise ValueError(f"JSON parsing failed after {max_retries} attempts: {str(e)}")
+                
+                except Exception as e:
+                    if attempt < max_retries:
+                        logger.warning(f"Recipe modification failed on attempt {attempt}: {e}")
+                        continue
+                    else:
+                        raise
+            
+            # Should never reach here
+            raise ValueError("Recipe modification failed after all retries")
+            
+        except Exception as e:
+            logger.error(f"Recipe modification failed: {e}")
+            raise RuntimeError(f"Recipe modification failed: {str(e)}")
 
 # Global OpenAI service instance
 openai_service = OpenAIService()

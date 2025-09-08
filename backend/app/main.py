@@ -7,6 +7,8 @@ import logging
 from datetime import datetime
 
 from .schemas.base import HealthResponse, StatusResponse, ErrorResponse
+from fastapi_limiter import FastAPILimiter
+import redis.asyncio as redis
 import json
 from .database import init_database, check_database_connection
 from .routers import auth, users, recipes
@@ -167,6 +169,18 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         # Don't fail startup, but log the error
+    
+    # Initialize rate limiter (optional; requires REDIS_URL)
+    try:
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+            await FastAPILimiter.init(r)
+            logger.info("Rate limiter initialized with Redis")
+        else:
+            logger.warning("REDIS_URL not set; rate limiting is disabled")
+    except Exception as e:
+        logger.error(f"Failed to initialize rate limiter: {e}")
     
     logger.info("API is ready to serve requests")
 

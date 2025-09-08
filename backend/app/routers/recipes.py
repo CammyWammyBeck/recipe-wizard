@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi_limiter.depends import RateLimiter
+import os
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
@@ -6,7 +8,7 @@ import logging
 from ..database import get_db
 from ..models import User, Recipe, RecipeIngredient, SavedRecipe
 from ..schemas import (
-    RecipeGenerationRequest, RecipeGenerationResponse,
+    RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest,
     RecipeAPI, IngredientAPI, SavedRecipeResponse, SaveRecipeSuccessResponse, ErrorResponse
 )
 from ..utils.auth import get_current_user
@@ -18,7 +20,13 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
-@router.post("/generate", response_model=RecipeGenerationResponse)
+# Rate limiting configuration (optional)
+_ENABLE_RATE_LIMIT = os.getenv("ENABLE_RATE_LIMIT", "true").lower() == "true" and bool(os.getenv("REDIS_URL"))
+_RATE_LIMIT_TIMES = int(os.getenv("RATE_LIMIT_TIMES", "5"))
+_RATE_LIMIT_SECONDS = int(os.getenv("RATE_LIMIT_SECONDS", "60"))
+_generate_deps = [Depends(RateLimiter(times=_RATE_LIMIT_TIMES, seconds=_RATE_LIMIT_SECONDS))] if _ENABLE_RATE_LIMIT else None
+
+@router.post("/generate", response_model=RecipeGenerationResponse, dependencies=_generate_deps)
 async def generate_recipe(
     request: RecipeGenerationRequest,
     current_user: User = Depends(get_current_user),
@@ -80,6 +88,105 @@ async def generate_recipe(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Recipe generation failed due to server error"
+        )
+
+@router.post("/modify", response_model=RecipeGenerationResponse, dependencies=_generate_deps)
+async def modify_recipe(
+    request: RecipeModificationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Modify an existing recipe based on user feedback.
+    
+    Takes the original recipe and a modification prompt, then generates
+    a new version with the requested changes while preserving the core recipe.
+    """
+    try:
+        # Convert recipeId from string to int for database lookup
+        try:
+            recipe_id = int(request.recipeId)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid recipe ID format"
+            )
+            
+        logger.info(f"Modifying recipe {recipe_id} for user {current_user.email}")
+        logger.info(f"Modification request: {request.modificationPrompt[:100]}...")
+        
+        # Get the original recipe from database
+        original_recipe = db.query(Recipe).filter(
+            Recipe.id == recipe_id,
+            Recipe.created_by_id == current_user.id  # Ensure user owns the recipe
+        ).first()
+        
+        if not original_recipe:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipe not found or you don't have permission to modify it"
+            )
+        
+        # Get original ingredients
+        original_ingredients = db.query(RecipeIngredient).filter(
+            RecipeIngredient.recipe_id == recipe_id
+        ).all()
+        
+        # Generate modified recipe using LLM service
+        modification_result = await llm_service.modify_recipe_with_fallback(
+            original_recipe, 
+            original_ingredients,
+            request.modificationPrompt,
+            current_user,
+            request.preferences
+        )
+        
+        # Save modified recipe to database as a new recipe
+        new_recipe_id = await _save_recipe_to_database(
+            db, 
+            current_user, 
+            modification_result['recipe_data'],
+            f"Modified: {request.modificationPrompt}",  # Store the modification as the new prompt
+            modification_result
+        )
+        
+        # Convert to API response format
+        api_response = llm_service.convert_to_api_response(
+            modification_result['recipe_data'],
+            f"Modified: {request.modificationPrompt}",
+            modification_result
+        )
+        
+        # Replace temporary ID with actual database ID
+        api_response['id'] = str(new_recipe_id)
+        
+        return RecipeGenerationResponse(
+            id=api_response['id'],
+            recipe=RecipeAPI(**api_response['recipe']),
+            ingredients=[IngredientAPI(**ing) for ing in api_response['ingredients']],
+            generatedAt=api_response['generatedAt'],
+            userPrompt=api_response['userPrompt']
+        )
+        
+    except HTTPException:
+        raise
+    except ConnectionError as e:
+        logger.error(f"LLM service connection error during modification: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except ValueError as e:
+        logger.error(f"Recipe modification validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Recipe modification failed: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during recipe modification: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Recipe modification failed due to server error"
         )
 
 @router.get("/history")

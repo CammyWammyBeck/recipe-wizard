@@ -1,5 +1,5 @@
 // API service for handling recipe generation and data persistence
-import { RecipeGenerationRequest, RecipeGenerationResponse, SavedRecipeData, ConversationEntry } from '../types/api';
+import { RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest, SavedRecipeData, ConversationEntry } from '../types/api';
 import { PreferencesService } from './preferences';
 import { SavedRecipesService } from './savedRecipes';
 import * as SecureStore from 'expo-secure-store';
@@ -99,6 +99,53 @@ class APIService {
     } catch (error) {
       console.error('Error generating recipe:', error);
       throw new Error('Failed to generate recipe. Please try again.');
+    }
+  }
+
+  /**
+   * Modify an existing recipe based on user feedback
+   */
+  async modifyRecipe(recipeId: string, modificationPrompt: string): Promise<RecipeGenerationResponse> {
+    try {
+      // Load user preferences for context
+      const preferences = await PreferencesService.loadPreferences();
+
+      const request: RecipeModificationRequest = {
+        recipeId,
+        modificationPrompt,
+      };
+
+      // Enhanced request with preferences for better LLM context
+      const enhancedRequest = {
+        ...request,
+        preferences,
+      };
+
+      const url = `${this.baseUrl}/api/recipes/modify`;
+      console.log('🔄 Making recipe modification request to:', url);
+      console.log('📝 Modification request payload:', JSON.stringify(enhancedRequest, null, 2));
+      
+      const headers = await this.getAuthHeaders();
+      console.log('🔑 Using auth headers:', Object.keys(headers));
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(enhancedRequest),
+      });
+      
+      console.log('📡 Modification response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error modifying recipe:', error);
+      throw new Error('Failed to modify recipe. Please try again.');
     }
   }
 

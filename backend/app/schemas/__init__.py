@@ -7,7 +7,7 @@ from .user import (
 from .recipe import (
     IngredientCreate, IngredientResponse, IngredientAPI,
     RecipeCreate, RecipeUpdate, RecipeResponse, RecipeAPI,
-    RecipeGenerationRequest, RecipeGenerationResponse,
+    RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest,
     SavedRecipeCreate, SavedRecipeUpdate, SavedRecipeResponse, SaveRecipeSuccessResponse
 )
 from .conversation import (
@@ -27,7 +27,7 @@ __all__ = [
     # Recipe schemas
     "IngredientCreate", "IngredientResponse", "IngredientAPI",
     "RecipeCreate", "RecipeUpdate", "RecipeResponse", "RecipeAPI",
-    "RecipeGenerationRequest", "RecipeGenerationResponse",
+    "RecipeGenerationRequest", "RecipeGenerationResponse", "RecipeModificationRequest",
     "SavedRecipeCreate", "SavedRecipeUpdate", "SavedRecipeResponse", "SaveRecipeSuccessResponse",
     
     # Conversation schemas  
