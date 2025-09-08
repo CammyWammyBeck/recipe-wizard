@@ -20,6 +20,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
+    "react-native-draglist": "^3.9.9",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-paper": "^5.14.5",
     "react-native-safe-area-context": "5.4.0",

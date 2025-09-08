@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DragList, { DragListRenderItemInfo } from 'react-native-draglist';
 
 import { useAppTheme } from '../constants/ThemeProvider';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,6 +43,12 @@ export default function ProfileScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
   const { logout, user } = useAuth();
+  
+  // Refs for clearing TextInputs
+  const categoryInputRef = useRef<any>(null);
+  const dietaryInputRef = useRef<any>(null);
+  const allergenInputRef = useRef<any>(null);
+  
   const [preferences, setPreferences] = useState<UserPreferences>({
     ...DEFAULT_USER_PREFERENCES,
     updatedAt: new Date().toISOString(),
@@ -160,6 +167,97 @@ export default function ProfileScreen() {
     }));
   };
 
+  const reorderCategories = useCallback((newOrder: string[]) => {
+    setPreferences(prev => ({
+      ...prev,
+      groceryCategories: newOrder
+    }));
+  }, []);
+
+  const onCategoriesReordered = useCallback((fromIndex: number, toIndex: number) => {
+    const newOrder = [...preferences.groceryCategories];
+    const [removed] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, removed);
+    
+    setPreferences(prev => ({
+      ...prev,
+      groceryCategories: newOrder
+    }));
+  }, [preferences.groceryCategories]);
+
+  const renderCategoryItem = useCallback((
+    info: DragListRenderItemInfo<string>
+  ) => {
+    const { item: category, onDragStart, onDragEnd, isActive } = info;
+    
+    return (
+      <TouchableOpacity
+        onPressIn={onDragStart}
+        onPressOut={onDragEnd}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.md,
+          backgroundColor: isActive 
+            ? theme.colors.wizard.primary + '20'
+            : theme.colors.theme.surface,
+          borderRadius: theme.borderRadius.md,
+          marginBottom: theme.spacing.sm,
+          elevation: isActive ? 4 : 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: isActive ? 0.15 : 0,
+          shadowRadius: 4,
+          borderWidth: isActive ? 2 : 1,
+          borderColor: isActive 
+            ? theme.colors.wizard.primary
+            : theme.colors.theme.border,
+        }}
+      >
+        {/* Drag Handle */}
+        <View style={{ marginRight: theme.spacing.sm }}>
+          <MaterialCommunityIcons
+            name="drag-horizontal"
+            size={20}
+            color={isActive 
+              ? theme.colors.wizard.primary
+              : theme.colors.theme.textTertiary
+            }
+          />
+        </View>
+        
+        <Text style={{
+          color: isActive 
+            ? theme.colors.wizard.primary
+            : theme.colors.theme.text,
+          fontSize: theme.typography.fontSize.bodyLarge,
+          flex: 1,
+          textTransform: 'capitalize',
+          fontWeight: isActive ? '600' : '400',
+        }}>
+          {category.replace('-', ' ')}
+        </Text>
+        
+        <TouchableOpacity
+          onPress={() => removeCustomItem('groceryCategories', category)}
+          style={{ 
+            padding: theme.spacing.xs,
+            marginLeft: theme.spacing.sm,
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MaterialCommunityIcons 
+            name="close-circle" 
+            size={20} 
+            color={theme.colors.status.error} 
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  }, [theme, removeCustomItem]);
+
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
@@ -199,7 +297,7 @@ export default function ProfileScreen() {
             title="Measurement Units"
             subtitle={preferences.units === 'metric' ? 'Metric (kg, ml, °C)' : 'Imperial (lbs, cups, °F)'}
             icon="scale-balance"
-            isExpanded={false}
+            defaultExpanded={false}
           >
             <View style={{ gap: theme.spacing.md }}>
               <TouchableOpacity
@@ -281,7 +379,7 @@ export default function ProfileScreen() {
             title="Grocery Categories"
             subtitle={`${preferences.groceryCategories.length} categories`}
             icon="format-list-bulleted"
-            isExpanded={false}
+            defaultExpanded={false}
           >
             <View>
               <Text style={{
@@ -289,50 +387,27 @@ export default function ProfileScreen() {
                 fontSize: theme.typography.fontSize.bodyMedium,
                 marginBottom: theme.spacing.md,
               }}>
-                Customize how ingredients are organized in your grocery lists
+                Customize how ingredients are organized in your grocery lists. Drag to reorder.
               </Text>
               
-              {preferences.groceryCategories.map((category, index) => (
-                <View
-                  key={index}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: theme.spacing.sm,
-                    paddingHorizontal: theme.spacing.md,
-                    backgroundColor: theme.colors.theme.surface,
-                    borderRadius: theme.borderRadius.md,
-                    marginBottom: theme.spacing.sm,
-                  }}
-                >
-                  <Text style={{
-                    color: theme.colors.theme.text,
-                    fontSize: theme.typography.fontSize.bodyLarge,
-                    flex: 1,
-                    textTransform: 'capitalize',
-                  }}>
-                    {category.replace('-', ' ')}
-                  </Text>
-                  
-                  <TouchableOpacity
-                    onPress={() => removeCustomItem('groceryCategories', category)}
-                    style={{ padding: theme.spacing.xs }}
-                  >
-                    <MaterialCommunityIcons 
-                      name="close-circle" 
-                      size={20} 
-                      color={theme.colors.status.error} 
-                    />
-                  </TouchableOpacity>
+              {preferences.groceryCategories.length > 0 && (
+                <View style={{ marginBottom: theme.spacing.md }}>
+                  <DragList
+                    data={preferences.groceryCategories}
+                    keyExtractor={(item, index) => `${item}-${index}`}
+                    onReordered={onCategoriesReordered}
+                    renderItem={renderCategoryItem}
+                    scrollEnabled={false}
+                  />
                 </View>
-              ))}
+              )}
               
               <TextInput
+                ref={categoryInputRef}
                 placeholder="Add custom category..."
                 onSubmitEditing={(e) => {
                   addCustomItem('groceryCategories', e.nativeEvent.text);
-                  e.target.clear();
+                  categoryInputRef.current?.clear();
                 }}
                 style={{ marginTop: theme.spacing.md }}
               />
@@ -344,7 +419,7 @@ export default function ProfileScreen() {
             title="Recipe Preferences"
             subtitle={`${preferences.defaultServings} servings default`}
             icon="chef-hat"
-            isExpanded={false}
+            defaultExpanded={false}
           >
             <View style={{ gap: theme.spacing.lg }}>
               <View>
@@ -440,7 +515,7 @@ export default function ProfileScreen() {
               : 'None selected'
             }
             icon="food-apple"
-            isExpanded={false}
+            defaultExpanded={false}
           >
             <View>
               <Text style={{
@@ -492,10 +567,11 @@ export default function ProfileScreen() {
                 ))}
               
               <TextInput
+                ref={dietaryInputRef}
                 placeholder="Add custom dietary restriction..."
                 onSubmitEditing={(e) => {
                   addCustomItem('dietaryRestrictions', e.nativeEvent.text);
-                  e.target.clear();
+                  dietaryInputRef.current?.clear();
                 }}
                 style={{ marginTop: theme.spacing.md }}
               />
@@ -510,7 +586,7 @@ export default function ProfileScreen() {
               : 'None selected'
             }
             icon="alert-circle"
-            isExpanded={false}
+            defaultExpanded={false}
           >
             <View>
               <Text style={{
@@ -562,10 +638,11 @@ export default function ProfileScreen() {
                 ))}
               
               <TextInput
+                ref={allergenInputRef}
                 placeholder="Add custom allergen..."
                 onSubmitEditing={(e) => {
                   addCustomItem('allergens', e.nativeEvent.text);
-                  e.target.clear();
+                  allergenInputRef.current?.clear();
                 }}
                 style={{ marginTop: theme.spacing.md }}
               />
@@ -580,7 +657,7 @@ export default function ProfileScreen() {
               'Add custom instructions'
             }
             icon="text-box"
-            isExpanded={false}
+            defaultExpanded={false}
           >
             <View>
               <Text style={{
@@ -633,7 +710,7 @@ export default function ProfileScreen() {
             title="Account"
             subtitle={user?.email || 'Not logged in'}
             icon="account"
-            isExpanded={false}
+            defaultExpanded={false}
             style={{ marginTop: theme.spacing.lg }}
           >
             <View>

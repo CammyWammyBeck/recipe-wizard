@@ -21,6 +21,7 @@ import { TextInput } from '../components/TextInput';
 import { Button } from '../components/Button';
 import { RecipeGenerationResponse } from '../types/api';
 import { apiService } from '../services/api';
+import { PreferencesService } from '../services/preferences';
 
 
 export default function RecipeResultScreen() {
@@ -36,6 +37,20 @@ export default function RecipeResultScreen() {
   const [isSaved, setIsSaved] = useState(false);
   const [modificationText, setModificationText] = useState('');
   const [isModifying, setIsModifying] = useState(false);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+
+  // Load user preferences for category order
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const prefs = await PreferencesService.loadPreferences();
+        setCategoryOrder(prefs.groceryCategories);
+      } catch (error) {
+        console.error('Failed to load preferences:', error);
+      }
+    };
+    loadPreferences();
+  }, []);
 
   // Get recipe data from route params or load from API
   useEffect(() => {
@@ -346,6 +361,7 @@ export default function RecipeResultScreen() {
           <IngredientsSection 
             ingredients={ingredients}
             onIngredientToggle={handleIngredientToggle}
+            categoryOrder={categoryOrder}
           />
 
           {/* Recipe Section */}

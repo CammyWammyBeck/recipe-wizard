@@ -15,13 +15,14 @@ export interface Ingredient {
   name: string;
   amount: string;
   unit?: string;
-  category: 'produce' | 'butchery' | 'dry-goods' | 'chilled' | 'frozen' | 'pantry';
+  category: string; // Allow any custom category string
   checked?: boolean;
 }
 
 interface IngredientsSectionProps {
   ingredients: Ingredient[];
   onIngredientToggle?: (ingredientId: string, checked: boolean) => void;
+  categoryOrder?: string[]; // Custom category order from user preferences
   style?: ViewStyle;
 }
 
@@ -61,6 +62,7 @@ const CATEGORY_CONFIG = {
 export function IngredientsSection({
   ingredients,
   onIngredientToggle,
+  categoryOrder,
   style,
 }: IngredientsSectionProps) {
   const { theme } = useAppTheme();
@@ -75,8 +77,8 @@ export function IngredientsSection({
     return acc;
   }, {} as Record<string, Ingredient[]>);
 
-  // Sort categories by a logical shopping order
-  const categoryOrder: (keyof typeof CATEGORY_CONFIG)[] = [
+  // Use custom category order from user preferences, or fall back to default
+  const defaultCategoryOrder: string[] = [
     'produce',
     'butchery', 
     'chilled',
@@ -84,6 +86,10 @@ export function IngredientsSection({
     'dry-goods',
     'pantry'
   ];
+
+  const finalCategoryOrder = categoryOrder && categoryOrder.length > 0 
+    ? categoryOrder 
+    : defaultCategoryOrder;
 
   const handleIngredientToggle = (ingredientId: string, checked: boolean) => {
     onIngredientToggle?.(ingredientId, checked);
@@ -130,13 +136,17 @@ export function IngredientsSection({
       style={style}
     >
       <View style={{ gap: theme.spacing.lg }}>
-        {categoryOrder.map(categoryKey => {
+        {finalCategoryOrder.map(categoryKey => {
           const categoryIngredients = ingredientsByCategory[categoryKey];
           if (!categoryIngredients || categoryIngredients.length === 0) {
             return null;
           }
 
-          const categoryConfig = CATEGORY_CONFIG[categoryKey];
+          const categoryConfig = CATEGORY_CONFIG[categoryKey as keyof typeof CATEGORY_CONFIG] || {
+            name: categoryKey.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            icon: 'package-variant' as const,
+            color: '#6b7280', // gray for unknown categories
+          };
           const checkedInCategory = categoryIngredients.filter(ing => ing.checked).length;
           
           return (
