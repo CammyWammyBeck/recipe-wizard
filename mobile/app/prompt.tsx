@@ -187,7 +187,6 @@ export default function PromptScreen() {
         </View>
         
         <KeyboardAwareScrollView
-          style={{ flex: 1 }}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: insets.bottom + theme.spacing.xl,

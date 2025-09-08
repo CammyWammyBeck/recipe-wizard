@@ -199,7 +199,7 @@ export default function RecipeResultScreen() {
           </TouchableOpacity>
 
           <View style={{ flex: 1 }}>
-            {params.fromHistory && (
+            {(params.fromHistory || params.fromSavedRecipes) && (
               <Text
                 style={{
                   fontSize: theme.typography.fontSize.bodySmall,
@@ -208,7 +208,7 @@ export default function RecipeResultScreen() {
                   marginBottom: theme.spacing.xs,
                 }}
               >
-                From Saved Recipes
+                {params.fromSavedRecipes ? 'From Saved Recipes' : 'From History'}
               </Text>
             )}
             <Text
