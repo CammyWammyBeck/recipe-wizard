@@ -12,7 +12,9 @@ from ..models import User
 from ..schemas import TokenData
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is required but not set")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 

@@ -50,9 +50,7 @@ if ENVIRONMENT == "production" and DEBUG:
     logger.error("SECURITY WARNING: DEBUG=True in production environment!")
     raise ValueError("DEBUG mode must be disabled in production")
 
-if ENVIRONMENT == "production" and os.getenv("SECRET_KEY") == "your-secret-key-here":
-    logger.error("SECURITY WARNING: Default SECRET_KEY in production!")
-    raise ValueError("Must set a secure SECRET_KEY in production")
+# SECRET_KEY is now required and checked in auth.py - no need for default value check
 
 # Create FastAPI app
 app = FastAPI(
