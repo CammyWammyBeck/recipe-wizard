@@ -26,10 +26,13 @@ class PaginatedResponse(BaseResponse):
 
 class HealthResponse(BaseModel):
     """Health check response model"""
-    status: str = "healthy"
+    status: str = "healthy"  # healthy, unhealthy, degraded
     service: str = "Recipe Wizard API"
     version: str = "1.0.0"
     environment: str
+    uptime_seconds: Optional[float] = None
+    timestamp: datetime = datetime.utcnow()
+    checks: Optional[Dict[str, Any]] = None
 
 class StatusResponse(BaseModel):
     """Detailed status response model"""
@@ -37,3 +40,6 @@ class StatusResponse(BaseModel):
     services: Dict[str, Any]
     message: str
     timestamp: datetime
+    uptime_seconds: Optional[float] = None
+    version: str = "1.0.0"
+    environment: str = "development"

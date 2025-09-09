@@ -1,0 +1,99 @@
+{
+  "name": "Recipe Wizard API",
+  "description": "A powerful API for generating personalized recipes and grocery lists using AI",
+  "keywords": [
+    "fastapi",
+    "recipe-generation",
+    "ai",
+    "postgresql",
+    "python"
+  ],
+  "website": "https://github.com/your-username/recipe-wizard",
+  "repository": "https://github.com/your-username/recipe-wizard",
+  "stack": "heroku-22",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0",
+      "as": "DATABASE"
+    },
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
+    }
+  ],
+  "env": {
+    "ENVIRONMENT": {
+      "description": "Application environment (production, staging, development)",
+      "value": "production",
+      "required": true
+    },
+    "SECRET_KEY": {
+      "description": "Secret key for JWT token encryption - MUST be changed from default",
+      "generator": "secret",
+      "required": true
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API key for recipe generation",
+      "required": true
+    },
+    "DEFAULT_MODEL": {
+      "description": "Default OpenAI model for recipe generation",
+      "value": "gpt-4o-mini",
+      "required": false
+    },
+    "ALLOWED_ORIGINS": {
+      "description": "Comma-separated list of allowed CORS origins (include mobile app domain)",
+      "value": "",
+      "required": true
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+      "value": "INFO",
+      "required": false
+    },
+    "DEBUG": {
+      "description": "Enable debug mode (MUST be false in production)",
+      "value": "false",
+      "required": false
+    },
+    "RATE_LIMIT_PER_MINUTE": {
+      "description": "Rate limit per IP per minute",
+      "value": "100",
+      "required": false
+    },
+    "RATE_LIMIT_BURST": {
+      "description": "Rate limit burst allowance",
+      "value": "200",
+      "required": false
+    },
+    "SECURITY_HEADERS_ENABLED": {
+      "description": "Enable security headers middleware",
+      "value": "true",
+      "required": false
+    },
+    "THREAT_MONITORING_ENABLED": {
+      "description": "Enable threat monitoring and detection",
+      "value": "true",
+      "required": false
+    },
+    "ADMIN_WHITELIST_IPS": {
+      "description": "Comma-separated list of IPs allowed to access admin endpoints",
+      "value": "",
+      "required": false
+    }
+  },
+  "scripts": {
+    "postdeploy": "python -c \"print('Recipe Wizard API deployed successfully!')\""
+  }
+}

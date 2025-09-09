@@ -1,0 +1,11 @@
+# Heroku Procfile for Recipe Wizard API
+
+# Release phase: Run database migrations before deployment
+# Using custom script for enhanced error handling and logging
+release: python scripts/run_migrations.py
+
+# Web dyno: Start the FastAPI server
+web: uvicorn app.main:app --host=0.0.0.0 --port=${PORT:-8000} --workers=1
+
+# Optional: Worker dyno for background tasks (if needed later)
+# worker: python -m app.workers.background_tasks

@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 import os
 from typing import Generator
 import logging
+import time
 
 from .models import Base
 
@@ -13,6 +14,15 @@ logger = logging.getLogger(__name__)
 
 # Database URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recipe_wizard.db")
+
+# Fix Heroku PostgreSQL URL if needed (they use postgres:// but SQLAlchemy expects postgresql://)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    logger.info("Fixed DATABASE_URL for SQLAlchemy compatibility")
+
+# Environment settings
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 # SQLite-specific configuration for development
 if DATABASE_URL.startswith("sqlite"):
@@ -27,14 +37,33 @@ if DATABASE_URL.startswith("sqlite"):
     )
 else:
     # PostgreSQL configuration for production
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,  # Validate connections before use
-        pool_recycle=300,    # Recycle connections after 5 minutes
-        pool_size=5,         # Connection pool size
-        max_overflow=10,     # Maximum overflow connections
-        echo=os.getenv("DEBUG", "false").lower() == "true"
-    )
+    # Heroku-specific optimizations
+    if ENVIRONMENT == "production":
+        # Production settings optimized for Heroku
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,     # Validate connections before use
+            pool_recycle=1800,      # Recycle connections after 30 minutes (Heroku limit)
+            pool_size=2,            # Conservative pool size for free tier
+            max_overflow=3,         # Limited overflow for resource constraints
+            pool_timeout=30,        # Connection timeout
+            connect_args={
+                "sslmode": "require",    # Require SSL in production
+                "connect_timeout": 30    # Connection timeout
+            },
+            echo=DEBUG,
+            echo_pool=DEBUG if DEBUG else False
+        )
+    else:
+        # Development PostgreSQL settings
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,  # Validate connections before use
+            pool_recycle=300,    # Recycle connections after 5 minutes
+            pool_size=5,         # Connection pool size
+            max_overflow=10,     # Maximum overflow connections
+            echo=DEBUG
+        )
 
 # Create session factory
 SessionLocal = sessionmaker(
@@ -85,20 +114,26 @@ def get_db_session() -> Session:
     """
     return SessionLocal()
 
-def check_database_connection() -> bool:
+def check_database_connection(max_retries: int = 3, retry_delay: float = 1.0) -> bool:
     """
-    Check if database connection is working.
+    Check if database connection is working with retries.
     Returns True if connection is successful, False otherwise.
     """
-    try:
-        db = SessionLocal()
-        # Try a simple query
-        db.execute(text("SELECT 1"))
-        db.close()
-        return True
-    except Exception as e:
-        logger.error(f"Database connection check failed: {e}")
-        return False
+    for attempt in range(max_retries):
+        try:
+            db = SessionLocal()
+            # Try a simple query
+            db.execute(text("SELECT 1"))
+            db.close()
+            logger.info(f"Database connection successful (attempt {attempt + 1})")
+            return True
+        except Exception as e:
+            logger.warning(f"Database connection attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Database connection failed after {max_retries} attempts")
+    return False
 
 def init_database():
     """
@@ -106,7 +141,12 @@ def init_database():
     This should be called when the application starts.
     """
     try:
-        logger.info("Initializing database...")
+        logger.info(f"Initializing database (Environment: {ENVIRONMENT})...")
+        logger.info(f"Database URL (masked): {DATABASE_URL.split('@')[0] if '@' in DATABASE_URL else 'sqlite'}@***")
+        
+        # Check connection first
+        if not check_database_connection():
+            raise ConnectionError("Unable to connect to database")
         
         # Create tables if they don't exist
         create_tables()
@@ -115,7 +155,47 @@ def init_database():
         
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
-        raise
+        if ENVIRONMENT == "production":
+            # In production, we want to fail fast if database is not available
+            raise
+        else:
+            # In development, log but continue (might be using mock data)
+            logger.warning("Continuing despite database initialization failure in development mode")
+
+def wait_for_database(max_wait: int = 60) -> bool:
+    """
+    Wait for database to become available (useful for Heroku startup).
+    Returns True if database becomes available, False if timeout.
+    """
+    logger.info("Waiting for database to become available...")
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait:
+        if check_database_connection(max_retries=1, retry_delay=0):
+            logger.info("Database is now available")
+            return True
+        
+        logger.info("Database not ready, waiting...")
+        time.sleep(2)
+    
+    logger.error(f"Database did not become available within {max_wait} seconds")
+    return False
+
+def get_database_info() -> dict:
+    """
+    Get information about the current database configuration.
+    """
+    db_type = "SQLite" if DATABASE_URL.startswith("sqlite") else "PostgreSQL"
+    
+    return {
+        "database_type": db_type,
+        "environment": ENVIRONMENT,
+        "pool_size": getattr(engine.pool, 'size', None),
+        "max_overflow": getattr(engine.pool, 'max_overflow', None),
+        "pool_recycle": getattr(engine, 'pool_recycle', None),
+        "echo": engine.echo,
+        "url_masked": DATABASE_URL.split('@')[0] + "@***" if '@' in DATABASE_URL else "sqlite"
+    }
 
 # Database utilities for common operations
 class DatabaseManager:

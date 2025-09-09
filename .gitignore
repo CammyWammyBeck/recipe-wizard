@@ -46,7 +46,18 @@ backend/*.db
 backend/*.sqlite
 backend/*.sqlite3
 backend/.env
+backend/.env.production
+backend/.env.local
+backend/.env.development
 backend/logs/
+
+# Security: Never commit these files
+*.key
+*.pem
+*.p12
+*.jks
+secrets/
+.secrets
 
 # Python
 __pycache__/

@@ -1,0 +1,5 @@
+build:
+  docker:
+    web: backend/Dockerfile
+  config:
+    PROJECT_PATH: backend
