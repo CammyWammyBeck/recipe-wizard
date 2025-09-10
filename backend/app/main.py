@@ -57,8 +57,8 @@ app = FastAPI(
     title="Recipe Wizard API",
     description="A powerful API for generating personalized recipes and grocery lists using local LLM",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/docs" if ENVIRONMENT != "production" else None,
+    redoc_url="/redoc" if ENVIRONMENT != "production" else None
 )
 
 # CORS configuration for mobile app
@@ -517,9 +517,8 @@ async def api_status():
 @app.get("/")
 async def root():
     """Root endpoint with API information"""
-    return {
+    endpoint_info = {
         "message": "Welcome to Recipe Wizard API",
-        "docs": "/docs",
         "health": "/health",
         "health_live": "/health/live",
         "health_ready": "/health/ready", 
@@ -539,6 +538,13 @@ async def root():
         "cors_origins_count": len(origins),
         "security_enabled": True
     }
+    
+    # Add docs endpoints only in development
+    if ENVIRONMENT != "production":
+        endpoint_info["docs"] = "/docs"
+        endpoint_info["redoc"] = "/redoc"
+    
+    return endpoint_info
 
 # Startup event
 @app.on_event("startup")
