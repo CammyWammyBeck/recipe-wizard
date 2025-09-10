@@ -20,7 +20,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.cammybeck.recipewizard",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -31,6 +33,12 @@
       "expo-router",
       "expo-secure-store"
     ],
-    "scheme": "recipe-wizard"
+    "scheme": "recipe-wizard",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "13d76684-3800-406a-a071-e2c02ca60824"
+      }
+    }
   }
 }
