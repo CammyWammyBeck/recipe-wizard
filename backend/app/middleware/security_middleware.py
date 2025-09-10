@@ -123,7 +123,21 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         if redis_url:
             try:
                 import redis
-                self._redis = redis.from_url(redis_url, decode_responses=True)
+                
+                # Configure SSL for Heroku Redis
+                ssl_kwargs = {}
+                if redis_url.startswith("rediss://"):  # SSL Redis URL
+                    ssl_kwargs = {
+                        "ssl_cert_reqs": None,  # Don't verify SSL certificates
+                        "ssl_check_hostname": False,  # Don't verify hostname
+                        "ssl_ca_certs": None
+                    }
+                
+                self._redis = redis.from_url(
+                    redis_url, 
+                    decode_responses=True,
+                    **ssl_kwargs
+                )
                 self.logger.info("Rate limiting using Redis backend")
             except Exception as e:
                 self.logger.warning(f"Redis not available for rate limiting: {e}")

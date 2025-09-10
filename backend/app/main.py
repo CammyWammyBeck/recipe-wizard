@@ -587,7 +587,21 @@ async def startup_event():
     try:
         redis_url = os.getenv("REDIS_URL")
         if redis_url:
-            r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+            # Configure SSL for Heroku Redis
+            ssl_kwargs = {}
+            if redis_url.startswith("rediss://"):  # SSL Redis URL
+                ssl_kwargs = {
+                    "ssl_cert_reqs": None,  # Don't verify SSL certificates
+                    "ssl_check_hostname": False,  # Don't verify hostname
+                    "ssl_ca_certs": None
+                }
+            
+            r = redis.from_url(
+                redis_url, 
+                encoding="utf-8", 
+                decode_responses=True,
+                **ssl_kwargs
+            )
             await FastAPILimiter.init(r)
             logger.info("Rate limiter initialized with Redis")
         else:
