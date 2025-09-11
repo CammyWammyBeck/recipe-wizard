@@ -308,9 +308,10 @@ DIFFICULTY LEVELS: easy, medium, hard"""
         request: RecipeGenerationRequest, 
         user: Optional[User] = None
     ) -> Dict[str, Any]:
-        """Generate a recipe using OpenAI API with simple retry logic"""
+        """Generate a recipe using OpenAI API with 3-attempt fallback"""
         start_time = time.time()
         max_retries = 3
+        final_attempt = None  # Store final attempt to return if all fail
         
         try:
             # Get user preferences - prioritize request preferences over database
@@ -364,6 +365,18 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                     recipe_data = json.loads(cleaned_text)
                     is_valid, error_type = self._validate_recipe_data(recipe_data)
                     
+                    # Store this attempt for fallback
+                    final_attempt = {
+                        'recipe_data': recipe_data,
+                        'generation_time_ms': generation_time,
+                        'model': self.default_model,
+                        'raw_response': generated_text,
+                        'token_count': response.usage.completion_tokens if response.usage else 0,
+                        'prompt_tokens': response.usage.prompt_tokens if response.usage else 0,
+                        'retry_count': attempt - 1,
+                        'retry_message': self._get_retry_message(attempt, error_type) if attempt > 1 else None
+                    }
+                    
                     if is_valid:
                         # Add default values for optional fields
                         recipe = recipe_data['recipe']
@@ -382,18 +395,9 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                         for ing in recipe_data['ingredients']:
                             ing.setdefault('unit', '')
                         
-                        return {
-                            'recipe_data': recipe_data,
-                            'generation_time_ms': generation_time,
-                            'model': self.default_model,
-                            'raw_response': generated_text,
-                            'token_count': response.usage.completion_tokens if response.usage else 0,
-                            'prompt_tokens': response.usage.prompt_tokens if response.usage else 0,
-                            'retry_count': attempt - 1,
-                            'retry_message': self._get_retry_message(attempt, error_type) if attempt > 1 else None
-                        }
+                        return final_attempt
                     else:
-                        # Invalid format or validation - let it retry with helpful guidance
+                        # Invalid format or validation - let it retry with helpful guidance  
                         if attempt < max_retries:
                             logger.warning(f"Attempt {attempt} failed validation ({error_type}), retrying...")
                             detailed_retry = f"Previous response had {error_type} issues. Please fix and provide only valid JSON."
@@ -409,7 +413,32 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                             messages.append({"role": "user", "content": detailed_retry})
                             continue
                         else:
-                            raise ValueError(f"Recipe validation failed after {max_retries} attempts: {error_type}")
+                            # On final attempt, return it even if not perfect
+                            logger.warning(f"Returning final attempt ({attempt}) despite validation issues: {error_type}")
+                            # Add defaults even for imperfect recipes to make them client-readable
+                            recipe = recipe_data.get('recipe', {})
+                            recipe.setdefault('title', 'Generated Recipe')
+                            recipe.setdefault('description', '')
+                            recipe.setdefault('instructions', ['Follow recipe steps'])
+                            recipe.setdefault('prepTime', None)
+                            recipe.setdefault('cookTime', None)
+                            recipe.setdefault('servings', 4)
+                            recipe.setdefault('difficulty', 'medium')
+                            recipe.setdefault('tips', [])
+                            
+                            # Ensure instructions is a list
+                            if isinstance(recipe['instructions'], str):
+                                recipe['instructions'] = [recipe['instructions']]
+                            
+                            # Add default unit for ingredients
+                            ingredients = recipe_data.get('ingredients', [])
+                            for ing in ingredients:
+                                ing.setdefault('unit', '')
+                                ing.setdefault('name', 'Ingredient')
+                                ing.setdefault('amount', '1')
+                                ing.setdefault('category', 'pantry')
+                            
+                            return final_attempt
                 
                 except json.JSONDecodeError as e:
                     if attempt < max_retries:
@@ -427,7 +456,10 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                     else:
                         raise
             
-            # Should never reach here
+            # Fallback - should not reach here but return final attempt if available
+            if final_attempt:
+                logger.warning("Returning final attempt as fallback")
+                return final_attempt
             raise ValueError("Recipe generation failed after all retries")
             
         except Exception as e:

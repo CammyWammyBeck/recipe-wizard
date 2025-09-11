@@ -44,7 +44,23 @@ async def generate_recipe(
         # Generate recipe using LLM service with user context
         generation_result = await llm_service.generate_recipe_with_fallback(request, current_user)
         
-        # Save recipe to database first
+        # Convert to API response format first
+        api_response = llm_service.convert_to_api_response(
+            generation_result['recipe_data'],
+            request.prompt,
+            generation_result
+        )
+        
+        # Create the response object to verify it's valid before saving to database
+        response = RecipeGenerationResponse(
+            id=api_response['id'],  # This will be temporary, replaced after DB save
+            recipe=RecipeAPI(**api_response['recipe']),
+            ingredients=[IngredientAPI(**ing) for ing in api_response['ingredients']],
+            generatedAt=api_response['generatedAt'],
+            userPrompt=api_response['userPrompt']
+        )
+        
+        # Only save to database after successful API response creation
         recipe_id = await _save_recipe_to_database(
             db, 
             current_user, 
@@ -53,23 +69,10 @@ async def generate_recipe(
             generation_result
         )
         
-        # Convert to API response format with actual database ID
-        api_response = llm_service.convert_to_api_response(
-            generation_result['recipe_data'],
-            request.prompt,
-            generation_result
-        )
+        # Update response with actual database ID
+        response.id = str(recipe_id)
         
-        # Replace temporary ID with actual database ID
-        api_response['id'] = str(recipe_id)
-        
-        return RecipeGenerationResponse(
-            id=api_response['id'],
-            recipe=RecipeAPI(**api_response['recipe']),
-            ingredients=[IngredientAPI(**ing) for ing in api_response['ingredients']],
-            generatedAt=api_response['generatedAt'],
-            userPrompt=api_response['userPrompt']
-        )
+        return response
         
     except ConnectionError as e:
         logger.error(f"LLM service connection error: {e}")
@@ -141,7 +144,23 @@ async def modify_recipe(
             request.preferences
         )
         
-        # Save modified recipe to database as a new recipe
+        # Convert to API response format first
+        api_response = llm_service.convert_to_api_response(
+            modification_result['recipe_data'],
+            f"Modified: {request.modificationPrompt}",
+            modification_result
+        )
+        
+        # Create the response object to verify it's valid before saving to database
+        response = RecipeGenerationResponse(
+            id=api_response['id'],  # This will be temporary, replaced after DB save
+            recipe=RecipeAPI(**api_response['recipe']),
+            ingredients=[IngredientAPI(**ing) for ing in api_response['ingredients']],
+            generatedAt=api_response['generatedAt'],
+            userPrompt=api_response['userPrompt']
+        )
+        
+        # Only save to database after successful API response creation
         new_recipe_id = await _save_recipe_to_database(
             db, 
             current_user, 
@@ -150,23 +169,10 @@ async def modify_recipe(
             modification_result
         )
         
-        # Convert to API response format
-        api_response = llm_service.convert_to_api_response(
-            modification_result['recipe_data'],
-            f"Modified: {request.modificationPrompt}",
-            modification_result
-        )
+        # Update response with actual database ID
+        response.id = str(new_recipe_id)
         
-        # Replace temporary ID with actual database ID
-        api_response['id'] = str(new_recipe_id)
-        
-        return RecipeGenerationResponse(
-            id=api_response['id'],
-            recipe=RecipeAPI(**api_response['recipe']),
-            ingredients=[IngredientAPI(**ing) for ing in api_response['ingredients']],
-            generatedAt=api_response['generatedAt'],
-            userPrompt=api_response['userPrompt']
-        )
+        return response
         
     except HTTPException:
         raise
