@@ -10,7 +10,6 @@ from .utils.logging_config import setup_logging, get_logger
 from .middleware import (
     LoggingMiddleware,
     SecurityHeadersMiddleware,
-    RateLimitingMiddleware,
     SecurityMonitoringMiddleware,
     IPWhitelistMiddleware,
     get_security_middleware_config,
@@ -199,21 +198,9 @@ if security_config["whitelist_ips"]:
     app.add_middleware(IPWhitelistMiddleware, whitelisted_ips=security_config["whitelist_ips"])
     logger.info(f"IP whitelist middleware enabled for {len(security_config['whitelist_ips'])} IPs")
 
-# Add rate limiting middleware
-app.add_middleware(
-    RateLimitingMiddleware,
-    requests_per_minute=security_config["rate_limit_per_minute"],
-    burst_size=security_config["rate_limit_burst"],
-    redis_url=security_config["redis_url"]
-)
-logger.info(
-    "Rate limiting middleware enabled",
-    extra={
-        "requests_per_minute": security_config["rate_limit_per_minute"],
-        "burst_size": security_config["rate_limit_burst"],
-        "redis_enabled": bool(security_config["redis_url"])
-    }
-)
+# Rate limiting is handled by FastAPILimiter (initialized in startup event)
+# Custom RateLimitingMiddleware removed to prevent conflicts
+logger.info("Rate limiting handled by FastAPILimiter with Redis backend")
 
 # Include routers
 app.include_router(auth.router)
@@ -593,7 +580,7 @@ async def startup_event():
     try:
         redis_url = os.getenv("REDIS_URL")
         if redis_url:
-            # Configure SSL for Heroku Redis
+            # Configure SSL for Heroku Redis with connection pooling
             ssl_kwargs = {}
             if redis_url.startswith("rediss://"):  # SSL Redis URL
                 ssl_kwargs = {
@@ -606,10 +593,14 @@ async def startup_event():
                 redis_url, 
                 encoding="utf-8", 
                 decode_responses=True,
+                retry_on_timeout=True,
+                socket_keepalive=True,
+                socket_keepalive_options={},
+                health_check_interval=30,
                 **ssl_kwargs
             )
             await FastAPILimiter.init(r)
-            logger.info("Rate limiter initialized with Redis")
+            logger.info("Rate limiter initialized with Redis (with connection pooling)")
         else:
             logger.warning("REDIS_URL not set; rate limiting is disabled")
     except Exception as e:
