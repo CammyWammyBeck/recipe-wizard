@@ -207,6 +207,10 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(recipes.router)
 
+# Import and include async job router
+from .routers import jobs
+app.include_router(jobs.router)
+
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

@@ -3,6 +3,7 @@ from .base import Base, BaseModel
 from .user import User
 from .recipe import Recipe, RecipeIngredient, SavedRecipe
 from .conversation import Conversation, ConversationFeedback
+from .job import RecipeJob
 
 __all__ = [
     "Base",
@@ -12,5 +13,6 @@ __all__ = [
     "RecipeIngredient", 
     "SavedRecipe",
     "Conversation",
-    "ConversationFeedback"
+    "ConversationFeedback",
+    "RecipeJob"
 ]

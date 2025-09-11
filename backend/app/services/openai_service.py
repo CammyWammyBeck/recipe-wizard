@@ -67,8 +67,7 @@ CRITICAL INSTRUCTIONS:
 5. Include helpful cooking tips
 6. IMPORTANT: Follow all user preferences provided, but if there are conflicts between different preferences, always prioritize "Additional preferences" over all other settings
 7. INGREDIENT CATEGORIES: Every ingredient MUST use one of these exact categories: {categories_list}
-8. INGREDIENT-USAGE CONSISTENCY: Every food item referenced anywhere in the recipe (title, description, instructions, tips, or serving suggestions like "serve with X") MUST also appear in the "ingredients" array. Do not mention items that are not represented in "ingredients".
-9. OPTIONAL/SERVE-WITH ITEMS: If suggesting a side or garnish (e.g., crusty bread, rice, salad), include it in "ingredients" with an appropriate category from the list above and use an amount like "to serve", "to garnish" or "as needed" and set unit to "N/A".
+8. COMPLETE SHOPPING LIST: Include ALL items needed to make this recipe in the ingredients list. If you mention "serve with crusty bread" or "garnish with parsley", include those items in the ingredients so the user can buy them. Use amounts like "1 loaf" for bread, "to garnish" for herbs, or "as needed" for optional items, and set unit to "N/A" for descriptive amounts.
 
 REQUIRED JSON FORMAT:
 {{
@@ -189,10 +188,9 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                 if not isinstance(ing, dict) or 'name' not in ing or 'amount' not in ing or 'category' not in ing:
                     return False, 'format'
             
-            # Basic cross-check: avoid references to items not in ingredients for common phrases
-            if not self._ingredients_cover_common_references(recipe, ingredients):
-                return False, 'validation'
-
+            # Skip ingredient cross-reference validation - too strict for real-world recipes
+            # Recipes can mention items like "serve with bread" without requiring bread in grocery list
+            
             return True, ''
             
         except Exception:
@@ -402,13 +400,7 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                             logger.warning(f"Attempt {attempt} failed validation ({error_type}), retrying...")
                             detailed_retry = f"Previous response had {error_type} issues. Please fix and provide only valid JSON."
                             if error_type == 'validation':
-                                missing = self._find_missing_references(recipe_data.get('recipe', {}), recipe_data.get('ingredients', []))
-                                if missing:
-                                    missing_list = ", ".join(sorted(set(missing)))
-                                    detailed_retry += (
-                                        f" Ensure every item referenced in instructions/tips is present in the 'ingredients' array. "
-                                        f"Missing items detected: {missing_list}. If these are sides or garnishes, include them as ingredients with amount 'to serve' and unit 'N/A' and choose an appropriate category from the provided list."
-                                    )
+                                detailed_retry += " Please ensure the recipe format is correct and all required fields are present."
                             messages.append({"role": "assistant", "content": cleaned_text})
                             messages.append({"role": "user", "content": detailed_retry})
                             continue
@@ -526,8 +518,7 @@ CRITICAL MODIFICATION INSTRUCTIONS:
 8. If user requests flavor changes, adjust only seasonings/flavorings that affect that aspect
 9. IMPORTANT: Follow all user preferences provided, prioritizing modification request over general preferences
 10. INGREDIENT CATEGORIES: Every ingredient MUST use one of these exact categories: {categories_list}
-11. INGREDIENT-USAGE CONSISTENCY: Every food item referenced anywhere in the recipe (title, description, instructions, tips, or serving suggestions like "serve with X") MUST also appear in the "ingredients" array. Do not mention items that are not represented in "ingredients".
-12. OPTIONAL/SERVE-WITH ITEMS: If suggesting a side or garnish (e.g., crusty bread, rice, salad), include it in "ingredients" with an appropriate category from the list above and use an amount like "to serve", "to garnish" or "as needed" and set unit to "N/A".
+11. COMPLETE SHOPPING LIST: Include ALL items needed to make this recipe in the ingredients list. If you mention "serve with crusty bread" or "garnish with parsley", include those items in the ingredients so the user can buy them. Use amounts like "1 loaf" for bread, "to garnish" for herbs, or "as needed" for optional items, and set unit to "N/A" for descriptive amounts.
 
 MODIFICATION APPROACH:
 - For ingredient substitutions: Replace only the specified ingredient(s)
@@ -726,13 +717,7 @@ INSTRUCTIONS:
                             logger.warning(f"Modification attempt {attempt} failed validation ({error_type}), retrying...")
                             detailed_retry = f"Previous response had {error_type} issues. Please fix and provide only valid JSON that preserves the original recipe structure."
                             if error_type == 'validation':
-                                missing = self._find_missing_references(recipe_data.get('recipe', {}), recipe_data.get('ingredients', []))
-                                if missing:
-                                    missing_list = ", ".join(sorted(set(missing)))
-                                    detailed_retry += (
-                                        f" Ensure every item referenced in instructions/tips is present in the 'ingredients' array. "
-                                        f"Missing items detected: {missing_list}. If these are sides or garnishes, include them as ingredients with amount 'to serve' and unit 'N/A' and choose an appropriate category from the provided list."
-                                    )
+                                detailed_retry += " Please ensure the recipe format is correct and all required fields are present."
                             messages.append({"role": "assistant", "content": cleaned_text})
                             messages.append({"role": "user", "content": detailed_retry})
                             continue
