@@ -46,9 +46,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   
   // Determine the effective theme based on mode and system preference
-  const getEffectiveTheme = (mode: ThemeMode, systemScheme: 'light' | 'dark' | null): 'light' | 'dark' => {
+  const getEffectiveTheme = (mode: ThemeMode, systemScheme: 'light' | 'dark' | null | undefined): 'light' | 'dark' => {
     if (mode === 'system') {
-      return systemScheme || 'dark'; // Default to dark if system scheme is null
+      return systemScheme || 'dark'; // Default to dark if system scheme is null/undefined
     }
     return mode;
   };

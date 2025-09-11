@@ -9,19 +9,20 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "expo": "~53.0.22",
     "expo-auth-session": "~6.2.1",
+    "expo-constants": "~17.1.7",
     "expo-crypto": "~14.1.5",
-    "expo-router": "~5.1.5",
+    "expo-linking": "~7.1.7",
+    "expo-router": "~5.1.6",
     "expo-secure-store": "~14.2.4",
     "expo-status-bar": "~2.2.3",
     "nativewind": "^4.1.23",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-native": "0.79.6",
+    "react-native": "0.79.5",
     "react-native-draglist": "^3.9.9",
-    "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-paper": "^5.14.5",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
@@ -31,11 +32,10 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "^19.1.12",
-    "@types/react-native": "^0.73.0",
+    "@types/react": "~19.0.10",
     "babel-plugin-module-resolver": "^5.0.2",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.9.2"
+    "typescript": "~5.8.3"
   },
   "private": true
 }
