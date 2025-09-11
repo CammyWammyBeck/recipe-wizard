@@ -43,26 +43,12 @@ export default function PromptScreen() {
 
     setIsLoading(true);
     setError(null);
-    setLoadingMessage('Creating magic...');
-    
-    // Simulate dynamic loading messages (since we can't get real-time updates)
-    const loadingMessages = [
-      'Creating magic...',
-      'Mixing ingredients...',
-      'Perfecting the recipe...',
-      'Adding final touches...'
-    ];
-    
-    let messageIndex = 0;
-    const messageInterval = setInterval(() => {
-      messageIndex = (messageIndex + 1) % loadingMessages.length;
-      setLoadingMessage(loadingMessages[messageIndex]);
-    }, 2000);
+    setLoadingMessage('Starting recipe generation...');
     
     try {
-      // Generate recipe using real API
+      // Start async job
       console.log('Creating recipe with prompt:', prompt);
-      const recipeData = await apiService.generateRecipe({
+      const jobResponse = await apiService.startRecipeGeneration({
         prompt,
         overrides: {
           defaultServings: servings,
@@ -70,10 +56,33 @@ export default function PromptScreen() {
         },
       });
       
-      clearInterval(messageInterval);
+      console.log('🚀 Job started:', jobResponse.job_id);
+      setLoadingMessage('Generating your recipe...');
+      
+      // Poll job until completion with progress updates
+      const recipeData = await apiService.pollJobUntilComplete(
+        jobResponse.job_id,
+        (status) => {
+          // Update loading message based on job status
+          const progressMessages = {
+            'pending': 'Getting ready...',
+            'processing': `Creating your recipe (${status.progress}%)...`,
+          };
+          
+          const message = progressMessages[status.status as keyof typeof progressMessages] || 
+                         `Processing (${status.progress}%)...`;
+          setLoadingMessage(message);
+          
+          // Add estimated completion if available
+          if (status.estimated_completion) {
+            setLoadingMessage(`${message} - ${status.estimated_completion} remaining`);
+          }
+        }
+      );
+      
       setIsLoading(false);
       
-      // Navigate with the actual recipe data
+      // Navigate with the recipe data
       router.push({
         pathname: '/recipe-result',
         params: { 
@@ -82,8 +91,8 @@ export default function PromptScreen() {
           timestamp: Date.now().toString()
         }
       });
+      
     } catch (error) {
-      clearInterval(messageInterval);
       console.error('Recipe generation error:', error);
       setIsLoading(false);
       

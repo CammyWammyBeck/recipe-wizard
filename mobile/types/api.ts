@@ -45,6 +45,49 @@ export interface RecipeGenerationResponse {
   retryMessage?: string; // Message shown during retries
 }
 
+// Async Job Processing Types
+export interface RecipeJobCreateResponse {
+  job_id: string;
+  status: string;
+  message: string;
+  estimated_completion: string;
+  status_url: string;
+  polling_interval: number; // seconds between polls
+}
+
+export interface RecipeJobStatus {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  job_type: 'generate' | 'modify';
+  prompt: string;
+  progress: number; // 0-100
+  recipe_id?: string;
+  error_message?: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  estimated_completion?: string;
+}
+
+export interface RecipeJobResult {
+  job_id: string;
+  status: string;
+  recipe_id: string;
+  recipe: APIRecipe;
+  ingredients: APIIngredient[];
+  generated_at: string;
+  user_prompt: string;
+  generation_metadata?: Record<string, any>;
+}
+
+export interface RecipeJobError {
+  job_id: string;
+  status: 'failed';
+  error_message: string;
+  error_type: string;
+  retry_available: boolean;
+}
+
 // For saving/loading recipes
 export interface SavedRecipeData extends RecipeGenerationResponse {
   savedAt: string;

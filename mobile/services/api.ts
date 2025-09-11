@@ -1,5 +1,9 @@
 // API service for handling recipe generation and data persistence
-import { RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest, SavedRecipeData, ConversationEntry } from '../types/api';
+import { 
+  RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest, 
+  SavedRecipeData, ConversationEntry, RecipeJobCreateResponse, RecipeJobStatus, 
+  RecipeJobResult, RecipeJobError 
+} from '../types/api';
 import { PreferencesService } from './preferences';
 import { SavedRecipesService } from './savedRecipes';
 import * as SecureStore from 'expo-secure-store';
@@ -310,6 +314,151 @@ class APIService {
     } catch (error) {
       console.warn('API health check failed:', error);
       return false;
+    }
+  }
+
+  // ========================================
+  // Async Job Processing Methods
+  // ========================================
+
+  /**
+   * Start async recipe generation job
+   */
+  async startRecipeGeneration(request: RecipeGenerationRequest): Promise<RecipeJobCreateResponse> {
+    try {
+      const preferences = await PreferencesService.getUserPreferences();
+      const requestWithPrefs = { ...request, preferences };
+
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/jobs/recipes/generate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestWithPrefs),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const jobResponse: RecipeJobCreateResponse = await response.json();
+      console.log('🚀 Started recipe generation job:', jobResponse.job_id);
+      return jobResponse;
+    } catch (error) {
+      console.error('Error starting recipe generation job:', error);
+      throw new Error('Failed to start recipe generation. Please try again.');
+    }
+  }
+
+  /**
+   * Get job status
+   */
+  async getJobStatus(jobId: string): Promise<RecipeJobStatus> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/jobs/recipes/${jobId}/status`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting job status:', error);
+      throw new Error('Failed to get job status. Please try again.');
+    }
+  }
+
+  /**
+   * Get completed job result
+   */
+  async getJobResult(jobId: string): Promise<RecipeJobResult> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/jobs/recipes/${jobId}/result`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting job result:', error);
+      throw new Error('Failed to get job result. Please try again.');
+    }
+  }
+
+  /**
+   * Poll job until completion with automatic retries
+   * Returns the final recipe when ready
+   */
+  async pollJobUntilComplete(
+    jobId: string, 
+    onProgress?: (status: RecipeJobStatus) => void,
+    timeoutMs: number = 300000 // 5 minutes default
+  ): Promise<RecipeGenerationResponse> {
+    const startTime = Date.now();
+    const pollInterval = 3000; // 3 seconds
+    
+    while (true) {
+      try {
+        // Check for timeout
+        if (Date.now() - startTime > timeoutMs) {
+          throw new Error('Job polling timeout - recipe generation is taking longer than expected');
+        }
+
+        // Get current status
+        const status = await this.getJobStatus(jobId);
+        
+        // Call progress callback if provided
+        if (onProgress) {
+          onProgress(status);
+        }
+
+        // Handle completed job
+        if (status.status === 'completed') {
+          console.log('✅ Job completed:', jobId);
+          const result = await this.getJobResult(jobId);
+          
+          // Convert to RecipeGenerationResponse format
+          return {
+            id: result.recipe_id,
+            recipe: result.recipe,
+            ingredients: result.ingredients,
+            generatedAt: result.generated_at,
+            userPrompt: result.user_prompt,
+            retryCount: result.generation_metadata?.retry_count,
+            retryMessage: result.generation_metadata?.retry_message
+          };
+        }
+
+        // Handle failed job
+        if (status.status === 'failed') {
+          console.error('❌ Job failed:', status.error_message);
+          throw new Error(status.error_message || 'Recipe generation failed');
+        }
+
+        // Handle cancelled job
+        if (status.status === 'cancelled') {
+          throw new Error('Recipe generation was cancelled');
+        }
+
+        // Continue polling for pending/processing jobs
+        console.log(`⏳ Job ${status.status} (${status.progress}%)`);
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+      } catch (error) {
+        console.error('Error during job polling:', error);
+        throw error;
+      }
     }
   }
 }
