@@ -167,18 +167,12 @@ export default function PromptScreen() {
         translucent
       />
       
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={0}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.colors.theme.background,
+        }}
       >
-        {/* Background with subtle gradient */}
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: theme.colors.theme.background,
-          }}
-        >
         {/* Top Navigation Bar */}
         <View
           style={{
@@ -248,10 +242,13 @@ export default function PromptScreen() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: insets.bottom + theme.spacing.xl,
+            paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
           }}
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          contentInsetAdjustmentBehavior="automatic"
         >
           {/* Hero Section */}
           <View
@@ -752,8 +749,7 @@ export default function PromptScreen() {
             </View>
           </View>
         </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+      </View>
     </>
   );
 }
