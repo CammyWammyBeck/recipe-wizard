@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from ..database import Base
+from .base import Base
 
 class RecipeJob(Base):
     """Model for tracking async recipe generation jobs"""
