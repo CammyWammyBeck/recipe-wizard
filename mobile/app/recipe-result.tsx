@@ -253,7 +253,7 @@ export default function RecipeResultScreen() {
             </TouchableOpacity>
 
             <View style={{ flex: 1 }}>
-              {(params.fromHistory || params.fromSavedRecipes) && (
+              {Boolean(params.fromHistory || params.fromSavedRecipes) && (
                 <Text
                   style={{
                     fontSize: theme.typography.fontSize.bodySmall,
@@ -288,7 +288,7 @@ export default function RecipeResultScreen() {
                 >
                   Ready in {(recipeData.recipe.prepTime || 0) + (recipeData.recipe.cookTime || 0)} minutes
                 </Text>
-                {recipeData.retryCount && recipeData.retryCount > 0 && (
+                {Boolean(recipeData.retryCount && recipeData.retryCount > 0) && (
                   <View style={{
                     marginLeft: theme.spacing.md,
                     backgroundColor: theme.colors.wizard.primaryLight + '20',
