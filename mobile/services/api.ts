@@ -326,7 +326,7 @@ class APIService {
    */
   async startRecipeGeneration(request: RecipeGenerationRequest): Promise<RecipeJobCreateResponse> {
     try {
-      const preferences = await PreferencesService.getUserPreferences();
+      const preferences = await PreferencesService.loadPreferences();
       const requestWithPrefs = { ...request, preferences };
 
       const headers = await this.getAuthHeaders();
