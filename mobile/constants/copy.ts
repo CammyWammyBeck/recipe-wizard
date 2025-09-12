@@ -265,6 +265,20 @@ export const LOADING_BUTTON_TEXTS: string[] = [
   'Flambéing fabulous flavors...'
 ];
 
+// Loading button text for idea generation specifically
+export const IDEA_LOADING_BUTTON_TEXTS: string[] = [
+  'Generating ideas...',
+  'Brainstorming flavors...',
+  'Cooking up concepts...',
+  'Stirring up inspiration...',
+  'Mixing creative ideas...',
+  'Simmering possibilities...',
+  'Whisking up suggestions...',
+  'Crafting culinary concepts...',
+  'Brewing brilliant ideas...',
+  'Seasoning with creativity...',
+];
+
 // Utilities
 export function randomItem<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -299,4 +313,8 @@ export function getRandomSuggestion(): string {
 
 export function getRandomLoadingButtonText(): string {
   return randomItem(LOADING_BUTTON_TEXTS);
+}
+
+export function getRandomIdeaLoadingButtonText(): string {
+  return randomItem(IDEA_LOADING_BUTTON_TEXTS);
 }

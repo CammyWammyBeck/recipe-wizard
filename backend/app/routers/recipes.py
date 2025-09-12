@@ -9,6 +9,7 @@ from ..database import get_db
 from ..models import User, Recipe, RecipeIngredient, SavedRecipe
 from ..schemas import (
     RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest,
+    RecipeIdeaGenerationRequest, RecipeIdeasResponse,
     RecipeAPI, IngredientAPI, SavedRecipeResponse, SaveRecipeSuccessResponse, ErrorResponse
 )
 from ..utils.auth import get_current_user
@@ -193,6 +194,51 @@ async def modify_recipe(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Recipe modification failed due to server error"
+        )
+
+@router.post("/generate-ideas", response_model=RecipeIdeasResponse, dependencies=_generate_deps)
+async def generate_recipe_ideas(
+    request: RecipeIdeaGenerationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate recipe ideas based on user prompt using LLM.
+    
+    This is a faster, lighter-weight endpoint for brainstorming recipe concepts.
+    Ideas are not stored in the database and are designed for quick inspiration.
+    """
+    try:
+        logger.info(f"Generating {request.count} recipe ideas for user {current_user.email} with prompt: {request.prompt[:100]}...")
+        
+        # Generate recipe ideas using LLM service with user context
+        ideas_result = await llm_service.generate_recipe_ideas_with_fallback(request, current_user)
+        
+        logger.info(f"Successfully generated {len(ideas_result['ideas'])} recipe ideas")
+        
+        return RecipeIdeasResponse(
+            ideas=ideas_result['ideas'],
+            generatedAt=ideas_result['generatedAt'], 
+            userPrompt=request.prompt
+        )
+        
+    except ConnectionError as e:
+        logger.error(f"LLM service connection error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except ValueError as e:
+        logger.error(f"Recipe ideas generation validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Recipe ideas generation failed: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during recipe ideas generation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Recipe ideas generation failed due to server error"
         )
 
 @router.get("/history")

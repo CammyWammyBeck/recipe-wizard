@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button, TextInput, useAppTheme, ExpandableCard } from '../components';
+import { Button, TextInput, useAppTheme, ExpandableCard, PillSlider, PillSliderOption } from '../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiService } from '../services/api';
+import { RecipeIdeasResponse } from '../types/api';
 import { PreferencesService } from '../services/preferences';
 import { UserPreferences } from '../types/api';
 import {
@@ -13,6 +14,7 @@ import {
   getRandomSuggestion,
   getRandomSuggestions,
   getRandomLoadingButtonText,
+  getRandomIdeaLoadingButtonText,
 } from '../constants/copy';
 
 export default function PromptScreen() {
@@ -23,6 +25,23 @@ export default function PromptScreen() {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Recipe Ideas Generation State
+  const [sliderMode, setSliderMode] = useState<'preset' | 'generate'>('preset');
+  const [generatedIdeas, setGeneratedIdeas] = useState<Array<{id: string; title: string; description: string}>>([]);
+  const [isGeneratingIdeas, setIsGeneratingIdeas] = useState(false);
+  const [ideasGenerationError, setIdeasGenerationError] = useState<string | null>(null);
+  const [generateIdeasPrompt, setGenerateIdeasPrompt] = useState('');
+  const [lastGeneratedPrompt, setLastGeneratedPrompt] = useState(''); // Track what prompt was used for generation
+  const [generateIdeasButtonText, setGenerateIdeasButtonText] = useState('Generate Ideas');
+  const [ideasGenerationAttempt, setIdeasGenerationAttempt] = useState(1);
+  const [ideasSegmentProgress, setIdeasSegmentProgress] = useState(0);
+  const [ideasAttemptStartTime, setIdeasAttemptStartTime] = useState<number | null>(null);
+  const [isIdeasInErrorState, setIsIdeasInErrorState] = useState(false);
+  const ideasProgressAnimation = useRef(new Animated.Value(0)).current;
+  const ideasTextCyclingInterval = useRef<NodeJS.Timeout | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const mainInputRef = useRef<View>(null);
   const [servings, setServings] = useState<number>(4);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | undefined>(undefined);
   
@@ -68,6 +87,82 @@ export default function PromptScreen() {
       }
     };
   }, [isLoading, isInErrorState]);
+
+  // Ideas progress animation within current segment (2-segment progress)
+  useEffect(() => {
+    if (!isGeneratingIdeas || !ideasAttemptStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - ideasAttemptStartTime;
+      const maxTime = 15000; // 15 seconds max per attempt
+      const progress = Math.min(elapsed / maxTime, 1);
+      
+      setIdeasSegmentProgress(progress);
+    }, 100); // Update every 100ms for smooth animation
+
+    return () => clearInterval(interval);
+  }, [isGeneratingIdeas, ideasAttemptStartTime]);
+
+  // Calculate total progress for ideas (2 segments) and animate
+  const updateIdeasProgressAnimation = () => {
+    const completedSegments = ideasGenerationAttempt - 1;
+    const currentSegmentProgress = ideasSegmentProgress / 2; // Each segment is 1/2 of total
+    const totalProgress = (completedSegments / 2) + currentSegmentProgress;
+    
+    Animated.timing(ideasProgressAnimation, {
+      toValue: totalProgress,
+      duration: 300, // 0.3 second smooth transition
+      useNativeDriver: false, // Width animations require false
+    }).start();
+  };
+
+  // Update ideas animation when progress changes
+  useEffect(() => {
+    if (isGeneratingIdeas) {
+      updateIdeasProgressAnimation();
+    } else {
+      ideasProgressAnimation.setValue(0);
+    }
+  }, [ideasGenerationAttempt, ideasSegmentProgress, isGeneratingIdeas]);
+
+  // Reset ideas progress state when loading starts/stops
+  useEffect(() => {
+    if (isGeneratingIdeas) {
+      setIdeasGenerationAttempt(1);
+      setIdeasSegmentProgress(0);
+      setIdeasAttemptStartTime(Date.now());
+      setIsIdeasInErrorState(false);
+    } else {
+      setIdeasGenerationAttempt(1);
+      setIdeasSegmentProgress(0);
+      setIdeasAttemptStartTime(null);
+    }
+  }, [isGeneratingIdeas]);
+
+  // Cycle ideas button text every 3 seconds during loading
+  useEffect(() => {
+    // Clear any existing interval
+    if (ideasTextCyclingInterval.current) {
+      clearInterval(ideasTextCyclingInterval.current);
+      ideasTextCyclingInterval.current = null;
+    }
+
+    if (!isGeneratingIdeas || isIdeasInErrorState) return;
+
+    ideasTextCyclingInterval.current = setInterval(() => {
+      // Only cycle text if still loading and not in error state
+      if (isGeneratingIdeas && !isIdeasInErrorState) {
+        setGenerateIdeasButtonText(getRandomIdeaLoadingButtonText());
+      }
+    }, 3000);
+
+    return () => {
+      if (ideasTextCyclingInterval.current) {
+        clearInterval(ideasTextCyclingInterval.current);
+        ideasTextCyclingInterval.current = null;
+      }
+    };
+  }, [isGeneratingIdeas, isIdeasInErrorState]);
 
   // Progress animation within current segment
   useEffect(() => {
@@ -271,6 +366,114 @@ export default function PromptScreen() {
     setPrompt(suggestion);
   };
 
+  // Pill slider options
+  const sliderOptions: [PillSliderOption, PillSliderOption] = [
+    { label: 'Preset', value: 'preset' },
+    { label: 'Generate', value: 'generate' }
+  ];
+
+  const handleSliderChange = (value: string) => {
+    setSliderMode(value as 'preset' | 'generate');
+    // Reset ideas state when switching modes
+    if (value === 'preset') {
+      setGeneratedIdeas([]);
+      setGenerateIdeasPrompt('');
+      setLastGeneratedPrompt('');
+      setIsGeneratingIdeas(false);
+      setIdeasGenerationError(null);
+      setIsIdeasInErrorState(false);
+      setGenerateIdeasButtonText('Generate Ideas');
+    }
+  };
+
+  const handleGenerateIdeas = async () => {
+    // Check if this is a refresh action (button shows 'Refresh Ideas')
+    const isRefreshAction = generateIdeasButtonText === 'Refresh Ideas';
+    
+    if (!generateIdeasPrompt.trim() && !isRefreshAction) {
+      setGenerateIdeasButtonText('Please enter an idea prompt');
+      setTimeout(() => setGenerateIdeasButtonText('Generate Ideas'), 3000);
+      return;
+    }
+
+    setIsGeneratingIdeas(true);
+    setGenerateIdeasButtonText(getRandomIdeaLoadingButtonText());
+    
+    try {
+      // IMMEDIATELY clear text cycling interval to prevent race condition
+      if (ideasTextCyclingInterval.current) {
+        clearInterval(ideasTextCyclingInterval.current);
+        ideasTextCyclingInterval.current = null;
+      }
+
+      // Call the real API
+      const response: RecipeIdeasResponse = await apiService.generateRecipeIdeas({
+        prompt: generateIdeasPrompt,
+        count: 5
+      });
+      
+      console.log('🎯 Received recipe ideas:', response.ideas.length);
+      
+      // Success animation - fill remaining progress
+      setIdeasGenerationAttempt(2);
+      setIdeasSegmentProgress(1);
+      
+      // Wait for success animation, then show results
+      setTimeout(() => {
+        setGeneratedIdeas(response.ideas);
+        // Store the prompt that was used for generation
+        setLastGeneratedPrompt(generateIdeasPrompt);
+        // Button should show 'Refresh Ideas' after successful generation
+        setGenerateIdeasButtonText('Refresh Ideas');
+      }, 300);
+      
+    } catch (error) {
+      console.error('Ideas generation error:', error);
+      
+      // IMMEDIATELY stop text cycling to prevent race condition
+      if (ideasTextCyclingInterval.current) {
+        clearInterval(ideasTextCyclingInterval.current);
+        ideasTextCyclingInterval.current = null;
+      }
+      
+      setIsIdeasInErrorState(true);
+      setIdeasGenerationError('Failed to generate ideas');
+      setGenerateIdeasButtonText('Failed to generate ideas. Tap to retry.');
+      
+    } finally {
+      setTimeout(() => {
+        setIsGeneratingIdeas(false);
+      }, 300); // Wait for animation before clearing loading state
+    }
+  };
+
+  const handleIdeaPress = (idea: {title: string; description: string}) => {
+    // Populate main prompt with the selected idea
+    setPrompt(`${idea.title}: ${idea.description}`);
+    
+    // Scroll to main input after a short delay to allow state update
+    setTimeout(() => {
+      scrollToMainInput();
+    }, 100);
+  };
+
+  const scrollToMainInput = () => {
+    if (mainInputRef.current && scrollViewRef.current) {
+      mainInputRef.current.measureLayout(
+        scrollViewRef.current as any,
+        (x, y) => {
+          scrollViewRef.current?.scrollTo({
+            y: y - 100, // Offset to show some space above the input
+            animated: true,
+          });
+        },
+        () => {
+          console.log('Failed to measure main input position');
+        }
+      );
+    }
+  };
+
   return (
     <>
       <StatusBar 
@@ -351,17 +554,23 @@ export default function PromptScreen() {
           </TouchableOpacity>
         </View>
         
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
-          }}
+        <KeyboardAvoidingView
           style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          contentInsetAdjustmentBehavior="automatic"
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={{
+              paddingHorizontal: theme.spacing.xl,
+              paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
+            }}
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            contentInsetAdjustmentBehavior="automatic"
+          >
           {/* Hero Section */}
           <View
             style={{
@@ -465,6 +674,7 @@ export default function PromptScreen() {
 
           {/* Enhanced Input Section */}
           <View
+            ref={mainInputRef}
             style={{
               marginBottom: theme.spacing['3xl'],
               position: 'relative',
@@ -816,7 +1026,7 @@ export default function PromptScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Enhanced Suggestions */}
+          {/* Recipe Ideas Section */}
           <View>
             <Text
               style={{
@@ -831,75 +1041,304 @@ export default function PromptScreen() {
               Or try one of these ideas
             </Text>
             
-            <View
-              style={{
-                gap: theme.spacing.md,
-              }}
-            >
-              {suggestionPrompts.map((suggestion, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => handleSuggestionPress(suggestion.text)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: theme.colors.theme.backgroundSecondary,
-                    borderRadius: theme.borderRadius.xl,
-                    padding: theme.spacing.lg,
-                    borderWidth: 1,
-                    borderColor: theme.colors.theme.borderLight,
-                  }}
-                >
+            {/* Pill Slider for mode selection */}
+            <View style={{ marginBottom: theme.spacing.xl, alignItems: 'center' }}>
+              <PillSlider
+                options={sliderOptions}
+                selectedValue={sliderMode}
+                onValueChange={handleSliderChange}
+              />
+            </View>
+
+            {/* Conditional content based on slider mode */}
+            {sliderMode === 'preset' ? (
+              /* Preset Suggestions */
+              <View style={{ gap: theme.spacing.md }}>
+                {suggestionPrompts.map((suggestion, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => handleSuggestionPress(suggestion.text)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: theme.colors.theme.backgroundSecondary,
+                      borderRadius: theme.borderRadius.xl,
+                      padding: theme.spacing.lg,
+                      borderWidth: 1,
+                      borderColor: theme.colors.theme.borderLight,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: theme.colors.wizard.primary + '20',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: theme.spacing.lg,
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={suggestion.icon}
+                        size={20}
+                        color={theme.colors.wizard.primary}
+                      />
+                    </View>
+                    
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: theme.typography.fontSize.bodyLarge,
+                        color: theme.colors.theme.text,
+                        fontFamily: theme.typography.fontFamily.body,
+                        fontWeight: theme.typography.fontWeight.medium,
+                      }}
+                    >
+                      {suggestion.text}
+                    </Text>
+
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={20}
+                      color={theme.colors.theme.textTertiary}
+                    />
+                  </TouchableOpacity>
+                ))}
+                <View style={{ marginTop: theme.spacing.lg }}>
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    leftIcon="refresh"
+                    onPress={refreshDynamicCopy}
+                  >
+                    Refresh ideas
+                  </Button>
+                </View>
+              </View>
+            ) : (
+              /* Generate Ideas Mode */
+              <View>
+                {/* Generate Ideas Prompt Input */}
+                <View style={{ marginBottom: theme.spacing.lg }}>
                   <View
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: theme.colors.wizard.primary + '20',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: theme.spacing.lg,
+                      borderRadius: theme.borderRadius.xl,
+                      borderWidth: 2,
+                      borderColor: generateIdeasPrompt.length > 0 
+                        ? theme.colors.wizard.primary 
+                        : theme.colors.theme.border,
+                      backgroundColor: theme.colors.theme.surface,
+                      ...theme.shadows.surface,
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
                   >
-                    <MaterialCommunityIcons
-                      name={suggestion.icon}
-                      size={20}
-                      color={theme.colors.wizard.primary}
+                    <TextInput
+                      placeholder={getRandomSuggestion()}
+                      value={generateIdeasPrompt}
+                      onChangeText={(text) => {
+                        setGenerateIdeasPrompt(text);
+                        // Reset error state when user starts editing
+                        if (isIdeasInErrorState) {
+                          setIsIdeasInErrorState(false);
+                          setGenerateIdeasButtonText('Generate Ideas');
+                        }
+                        // Update button text based on whether text has changed from last generation
+                        if (generatedIdeas.length > 0) {
+                          if (text !== lastGeneratedPrompt) {
+                            setGenerateIdeasButtonText('Generate Ideas');
+                          } else {
+                            setGenerateIdeasButtonText('Refresh Ideas');
+                          }
+                        }
+                      }}
+                      style={{
+                        minHeight: 80,
+                        fontSize: theme.typography.fontSize.bodyLarge,
+                        textAlignVertical: 'top',
+                        paddingTop: theme.spacing.lg,
+                        paddingBottom: theme.spacing.lg,
+                        lineHeight: theme.typography.fontSize.bodyLarge * 1.4,
+                      }}
+                      containerStyle={{ marginBottom: 0 }}
                     />
                   </View>
-                  
-                  <Text
+                </View>
+
+                {/* Generate Ideas Button with 2-segment progress */}
+                <TouchableOpacity
+                  onPress={handleGenerateIdeas}
+                  disabled={(!generateIdeasPrompt.trim() && generateIdeasButtonText !== 'Refresh Ideas') || 
+                           (isGeneratingIdeas && !generateIdeasButtonText.includes('Tap to retry'))}
+                  style={{
+                    minHeight: 48,
+                    borderRadius: theme.borderRadius.xl,
+                    backgroundColor: (!generateIdeasPrompt.trim() && generatedIdeas.length === 0) 
+                      ? theme.colors.theme.border 
+                      : generateIdeasButtonText.includes('failed') || generateIdeasButtonText.includes('retry')
+                        ? theme.colors.theme.surface 
+                        : isGeneratingIdeas 
+                          ? theme.colors.wizard.primary + '30' 
+                          : theme.colors.wizard.primary,
+                    borderWidth: generateIdeasButtonText.includes('failed') || generateIdeasButtonText.includes('retry') ? 2 : 0,
+                    borderColor: generateIdeasButtonText.includes('failed') || generateIdeasButtonText.includes('retry') ? '#f59e0b' : 'transparent',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    marginBottom: theme.spacing.lg,
+                  }}
+                >
+                  {/* Progress Bar Fill (2-segment) */}
+                  {isGeneratingIdeas && (
+                    <Animated.View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        bottom: 0,
+                        width: ideasProgressAnimation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                        backgroundColor: theme.colors.wizard.primary,
+                      }}
+                    />
+                  )}
+
+                  <View
                     style={{
                       flex: 1,
-                      fontSize: theme.typography.fontSize.bodyLarge,
-                      color: theme.colors.theme.text,
-                      fontFamily: theme.typography.fontFamily.body,
-                      fontWeight: theme.typography.fontWeight.medium,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: theme.spacing.lg,
+                      paddingVertical: theme.spacing.md,
                     }}
                   >
-                    {suggestion.text}
-                  </Text>
-
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={20}
-                    color={theme.colors.theme.textTertiary}
-                  />
+                    {!isGeneratingIdeas && (
+                      <MaterialCommunityIcons
+                        name={generateIdeasButtonText.includes('failed') || generateIdeasButtonText.includes('retry') 
+                          ? "refresh" 
+                          : generateIdeasButtonText === 'Refresh Ideas'
+                            ? "refresh"
+                            : "lightbulb-on"}
+                        size={20}
+                        color={(!generateIdeasPrompt.trim() && generatedIdeas.length === 0) 
+                          ? theme.colors.theme.textTertiary 
+                          : generateIdeasButtonText.includes('failed') || generateIdeasButtonText.includes('retry')
+                            ? '#f59e0b' 
+                            : 'white'}
+                        style={{ marginRight: theme.spacing.sm }}
+                      />
+                    )}
+                    
+                    <Text
+                      style={{
+                        fontSize: theme.typography.fontSize.bodyLarge,
+                        fontWeight: theme.typography.fontWeight.semibold,
+                        color: (!generateIdeasPrompt.trim() && generatedIdeas.length === 0) 
+                          ? theme.colors.theme.textTertiary 
+                          : generateIdeasButtonText.includes('failed') || generateIdeasButtonText.includes('retry')
+                            ? '#f59e0b' 
+                            : 'white',
+                        fontFamily: theme.typography.fontFamily.body,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {generateIdeasButtonText}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
-              ))}
-              <View style={{ marginTop: theme.spacing.lg }}>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  leftIcon="refresh"
-                  onPress={refreshDynamicCopy}
-                >
-                  Refresh ideas
-                </Button>
+
+                {/* Generated Ideas Display Cards */}
+                {generatedIdeas.length > 0 && (
+                  <View>
+                    <View style={{ gap: theme.spacing.md }}>
+                      {generatedIdeas.map((idea, index) => (
+                        <TouchableOpacity
+                          key={idea.id}
+                          onPress={() => handleIdeaPress(idea)}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'flex-start',
+                            backgroundColor: theme.colors.theme.surface,
+                            borderRadius: theme.borderRadius.xl,
+                            padding: theme.spacing.lg,
+                            borderWidth: 1,
+                            borderColor: theme.colors.theme.borderLight,
+                            ...theme.shadows.surface,
+                          }}
+                        >
+                          {/* Numbered indicator */}
+                          <View
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 16,
+                              backgroundColor: theme.colors.wizard.primary + '20',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: theme.spacing.md,
+                              marginTop: 2, // Slight alignment with text
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: theme.typography.fontSize.bodySmall,
+                                fontWeight: theme.typography.fontWeight.bold,
+                                color: theme.colors.wizard.primary,
+                                fontFamily: theme.typography.fontFamily.body,
+                              }}
+                            >
+                              {index + 1}
+                            </Text>
+                          </View>
+
+                          {/* Content */}
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: theme.typography.fontSize.titleSmall,
+                                fontWeight: theme.typography.fontWeight.semibold,
+                                color: theme.colors.theme.text,
+                                fontFamily: theme.typography.fontFamily.body,
+                                marginBottom: theme.spacing.xs,
+                                lineHeight: theme.typography.fontSize.titleSmall * 1.3,
+                              }}
+                            >
+                              {idea.title}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: theme.typography.fontSize.bodyMedium,
+                                color: theme.colors.theme.textSecondary,
+                                fontFamily: theme.typography.fontFamily.body,
+                                lineHeight: theme.typography.fontSize.bodyMedium * 1.4,
+                              }}
+                            >
+                              {idea.description}
+                            </Text>
+                          </View>
+
+                          {/* Arrow indicator */}
+                          <View style={{ marginLeft: theme.spacing.sm, marginTop: 2 }}>
+                            <MaterialCommunityIcons
+                              name="arrow-right-circle"
+                              size={20}
+                              color={theme.colors.wizard.primary}
+                              style={{ opacity: 0.7 }}
+                            />
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
-            </View>
+            )}
           </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </>
   );

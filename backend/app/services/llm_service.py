@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 
 from ..models import User
-from ..schemas import RecipeGenerationRequest, RecipeAPI, IngredientAPI
+from ..schemas import RecipeGenerationRequest, RecipeIdeaGenerationRequest, RecipeAPI, IngredientAPI
 from .openai_service import openai_service
 
 # Configure logging
@@ -129,6 +129,38 @@ class LLMService:
             modification_prompt,
             user,
             preferences
+        )
+    
+    async def generate_recipe_ideas_with_fallback(
+        self,
+        request: RecipeIdeaGenerationRequest,
+        user: Optional[User] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate recipe ideas using LLM with fallback error handling
+        """
+        # Check if OpenAI is available
+        if not await self.check_llm_connection():
+            logger.error("OpenAI service is not available")
+            raise ConnectionError("Unable to connect to recipe ideas service. Please try again later.")
+        
+        # Get user preferences context if available
+        user_preferences = None
+        
+        if request.preferences:
+            logger.info("Using preferences from API request (mobile app) for ideas")
+            user_preferences = self.openai_service._generate_preference_context_from_request(request.preferences)
+            logger.info(f"Request preferences applied for ideas generation")
+            
+        elif user:
+            logger.info(f"Using database preferences for user {user.email} for ideas")
+            user_preferences = user.get_preference_context()
+            
+        # Generate recipe ideas using OpenAI service
+        return await self.openai_service.generate_recipe_ideas(
+            request.prompt,
+            request.count,
+            user_preferences
         )
 
 # Global LLM service instance

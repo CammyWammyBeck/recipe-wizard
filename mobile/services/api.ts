@@ -1,8 +1,9 @@
 // API service for handling recipe generation and data persistence
 import { 
   RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest, 
+  RecipeIdeaGenerationRequest, RecipeIdeasResponse,
   SavedRecipeData, ConversationEntry, RecipeJobCreateResponse, RecipeJobStatus, 
-  RecipeJobResult, RecipeJobError 
+  RecipeJobResult, RecipeJobError, PaginatedConversationResponse 
 } from '../types/api';
 import { PreferencesService } from './preferences';
 import { SavedRecipesService } from './savedRecipes';
@@ -327,6 +328,29 @@ class APIService {
   }
 
   /**
+   * Get user's conversation history with pagination info
+   */
+  async getConversationHistoryWithPagination(limit: number = 20, offset: number = 0): Promise<PaginatedConversationResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`, {
+        method: 'GET',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching conversation history with pagination:', error);
+      throw new Error('Failed to load conversation history. Please try again.');
+    }
+  }
+
+  /**
    * Delete a saved recipe
    */
   async deleteRecipe(recipeId: string): Promise<void> {
@@ -360,6 +384,44 @@ class APIService {
     } catch (error) {
       console.warn('API health check failed:', error);
       return false;
+    }
+  }
+
+  /**
+   * Generate recipe ideas based on user prompt
+   */
+  async generateRecipeIdeas(request: RecipeIdeaGenerationRequest): Promise<RecipeIdeasResponse> {
+    try {
+      // Load user preferences and include them in request
+      const preferences = await PreferencesService.loadPreferences();
+
+      const enhancedRequest = {
+        ...request,
+        preferences,
+        count: request.count || 5
+      };
+
+      const url = `${this.baseUrl}/api/recipes/generate-ideas`;
+      console.log('🚀 Making recipe ideas request to:', url);
+      console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
+      
+      const response = await this.makeAuthenticatedRequest(url, {
+        method: 'POST',
+        body: JSON.stringify(enhancedRequest),
+      });
+      
+      console.log('📡 Ideas response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error generating recipe ideas:', error);
+      throw new Error('Failed to generate recipe ideas. Please try again.');
     }
   }
 

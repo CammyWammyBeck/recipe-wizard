@@ -10,6 +10,8 @@ export { IngredientsSection } from './IngredientsSection';
 export { RecipeSection } from './RecipeSection';
 export { SavedRecipesSection } from './SavedRecipesSection';
 export { AllHistorySection } from './AllHistorySection';
+export { PillSlider } from './PillSlider';
+export type { PillSliderOption } from './PillSlider';
 
 // Theme and styling
 export { useAppTheme, useThemeColors, useThemedStyles } from '../constants/ThemeProvider';

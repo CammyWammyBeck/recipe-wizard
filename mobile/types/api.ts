@@ -35,6 +35,23 @@ export interface RecipeModificationRequest {
   userId?: string; // For authenticated users
 }
 
+export interface RecipeIdeaGenerationRequest {
+  prompt: string;
+  count?: number; // Number of ideas to generate (default: 5)
+}
+
+export interface RecipeIdea {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface RecipeIdeasResponse {
+  ideas: RecipeIdea[];
+  generatedAt: string; // ISO timestamp
+  userPrompt: string; // Original user prompt
+}
+
 export interface RecipeGenerationResponse {
   id: string; // Generated recipe ID
   recipe: APIRecipe;
@@ -63,6 +80,7 @@ export interface RecipeJobStatus {
   progress: number; // 0-100
   recipe_id?: string;
   error_message?: string;
+  retry_count?: number; // Number of retries attempted
   created_at: string;
   started_at?: string;
   completed_at?: string;
@@ -100,6 +118,17 @@ export interface ConversationEntry {
   userPrompt: string;
   response: RecipeGenerationResponse;
   createdAt: string;
+}
+
+export interface PaginatedConversationResponse {
+  success: boolean;
+  recipes: SavedRecipeData[];
+  pagination: {
+    total: number;
+    offset: number;
+    limit: number;
+    hasMore: boolean;
+  };
 }
 
 // User preferences for LLM customization

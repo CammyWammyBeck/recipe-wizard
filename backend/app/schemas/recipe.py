@@ -115,6 +115,25 @@ class RecipeModificationRequest(BaseModel):
     modificationPrompt: str = Field(..., min_length=3, max_length=1000, description="What to change about the recipe")
     preferences: Optional[Dict[str, Any]] = None  # User preferences for context
 
+# Recipe Ideas Generation Schemas
+class RecipeIdeaGenerationRequest(BaseModel):
+    """Schema for recipe idea generation requests"""
+    prompt: str = Field(..., min_length=3, max_length=500, description="Prompt for generating recipe ideas")
+    preferences: Optional[Dict[str, Any]] = None  # User preferences for context
+    count: Optional[int] = Field(5, ge=1, le=20, description="Number of ideas to generate")
+
+class RecipeIdea(BaseModel):
+    """Individual recipe idea schema"""
+    id: str = Field(..., description="Unique identifier for the idea")
+    title: str = Field(..., min_length=1, max_length=100, description="Recipe idea title")
+    description: str = Field(..., min_length=1, max_length=200, description="Brief description of the recipe")
+
+class RecipeIdeasResponse(BaseModel):
+    """Response schema for recipe ideas generation"""
+    ideas: List[RecipeIdea] = Field(..., min_items=1, max_items=20)
+    generatedAt: str = Field(..., description="ISO timestamp of generation")
+    userPrompt: str = Field(..., description="Original user prompt")
+
 # Saved Recipe Schemas
 class SavedRecipeCreate(BaseModel):
     """Schema for saving recipes"""

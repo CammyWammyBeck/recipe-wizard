@@ -747,5 +747,179 @@ INSTRUCTIONS:
             logger.error(f"Recipe modification failed: {e}")
             raise RuntimeError(f"Recipe modification failed: {str(e)}")
 
+    def create_recipe_ideas_system_prompt(self) -> str:
+        """Create the system prompt for recipe ideas generation - no categories needed"""
+        return """You are RecipeWizard, an expert chef and recipe brainstormer. Generate creative, inspiring recipe ideas based on user requests.
+
+CRITICAL INSTRUCTIONS:
+1. Always respond with ONLY valid JSON in the exact format specified below
+2. Do not include any text before or after the JSON
+3. Ideas should be diverse, creative, and practical
+4. Focus on appealing titles and brief, enticing descriptions
+5. Keep descriptions concise but informative (1-2 sentences max)
+6. Each idea should be unique and distinct from others
+7. Consider different cooking methods, flavors, and styles for variety
+
+REQUIRED JSON FORMAT:
+{
+  "ideas": [
+    {
+      "title": "Creative Recipe Name",
+      "description": "Brief, appealing description that makes you want to cook it"
+    }
+  ]
+}
+
+GUIDELINES:
+- Titles should be catchy and descriptive
+- Descriptions should highlight what makes each recipe special
+- Include variety in cooking methods (baked, grilled, sautéed, etc.)
+- Consider different flavor profiles (savory, sweet, spicy, fresh, etc.)
+- Make sure ideas are achievable for home cooking"""
+
+    def create_recipe_ideas_messages(
+        self, 
+        user_prompt: str, 
+        count: int,
+        user_preferences: Optional[str] = None
+    ) -> List[Dict[str, str]]:
+        """Create OpenAI messages for recipe ideas generation"""
+        
+        system_prompt = self.create_recipe_ideas_system_prompt()
+        
+        # Build user message
+        user_message = f"Generate {count} creative recipe ideas for: {user_prompt}"
+        
+        if user_preferences:
+            user_message += user_preferences
+        
+        user_message += f"\n\nGenerate exactly {count} unique, diverse recipe ideas with ONLY valid JSON response:"
+        
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ]
+
+    def _validate_ideas_data(self, data: Dict, expected_count: int) -> tuple[bool, str]:
+        """Basic validation for ideas response - return (is_valid, error_type)"""
+        try:
+            # Check required top-level keys
+            if 'ideas' not in data:
+                return False, 'format'
+            
+            ideas = data['ideas']
+            
+            # Check ideas format
+            if not isinstance(ideas, list) or len(ideas) == 0:
+                return False, 'format'
+            
+            # Check we got the right count (allow some flexibility)
+            if len(ideas) < max(1, expected_count - 2) or len(ideas) > expected_count + 2:
+                return False, 'count'
+            
+            for idea in ideas:
+                if not isinstance(idea, dict) or 'title' not in idea or 'description' not in idea:
+                    return False, 'format'
+                
+                # Check for reasonable length
+                if not idea['title'] or not idea['description']:
+                    return False, 'content'
+                
+                if len(idea['title']) > 100 or len(idea['description']) > 200:
+                    return False, 'content'
+            
+            return True, ''
+            
+        except Exception:
+            return False, 'format'
+
+    async def generate_recipe_ideas(
+        self, 
+        prompt: str,
+        count: int = 5,
+        user_preferences: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Generate recipe ideas using OpenAI API with 2-attempt fallback"""
+        start_time = time.time()
+        max_retries = 2  # 2 attempts for faster ideas generation
+        
+        try:
+            # Create the messages
+            messages = self.create_recipe_ideas_messages(prompt, count, user_preferences)
+            
+            logger.info(f"Generating {count} recipe ideas for prompt: {prompt[:100]}...")
+            
+            for attempt in range(1, max_retries + 1):
+                try:
+                    # Call OpenAI API
+                    response: ChatCompletion = self.client.chat.completions.create(
+                        model=self.default_model,
+                        messages=messages,
+                        temperature=0.8,  # Higher creativity for ideas
+                        max_tokens=1000,  # Less tokens needed for ideas
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    generation_time = int((time.time() - start_time) * 1000)
+                    
+                    # Extract and clean the generated text
+                    generated_text = response.choices[0].message.content.strip()
+                    cleaned_text = self._simple_json_fix(generated_text)
+                    
+                    logger.info(f"OpenAI generated {len(generated_text)} characters for ideas in {generation_time}ms (attempt {attempt})")
+                    
+                    # Parse and validate JSON
+                    ideas_data = json.loads(cleaned_text)
+                    is_valid, error_type = self._validate_ideas_data(ideas_data, count)
+                    
+                    if is_valid:
+                        # Add IDs to ideas
+                        import uuid
+                        for i, idea in enumerate(ideas_data['ideas']):
+                            idea['id'] = str(uuid.uuid4())
+                        
+                        return {
+                            'ideas': ideas_data['ideas'],
+                            'generation_time_ms': generation_time,
+                            'model': self.default_model,
+                            'token_count': response.usage.completion_tokens if response.usage else 0,
+                            'prompt_tokens': response.usage.prompt_tokens if response.usage else 0,
+                            'retry_count': attempt - 1,
+                            'generatedAt': datetime.utcnow().isoformat()
+                        }
+                    else:
+                        # Invalid format or validation - let it retry
+                        if attempt < max_retries:
+                            logger.warning(f"Ideas attempt {attempt} failed validation ({error_type}), retrying...")
+                            retry_message = f"Previous response had {error_type} issues. Please provide exactly {count} unique recipe ideas with valid JSON format."
+                            messages.append({"role": "assistant", "content": cleaned_text})
+                            messages.append({"role": "user", "content": retry_message})
+                            continue
+                        else:
+                            raise ValueError(f"Recipe ideas validation failed after {max_retries} attempts: {error_type}")
+                
+                except json.JSONDecodeError as e:
+                    if attempt < max_retries:
+                        logger.warning(f"JSON parsing failed on ideas attempt {attempt}, retrying...")
+                        retry_message = f"Previous response was not valid JSON. Please provide exactly {count} recipe ideas in valid JSON format."
+                        messages.append({"role": "user", "content": retry_message})
+                        continue
+                    else:
+                        raise ValueError(f"JSON parsing failed after {max_retries} attempts: {str(e)}")
+                
+                except Exception as e:
+                    if attempt < max_retries:
+                        logger.warning(f"Recipe ideas generation failed on attempt {attempt}: {e}")
+                        continue
+                    else:
+                        raise
+            
+            # Should never reach here
+            raise ValueError("Recipe ideas generation failed after all retries")
+            
+        except Exception as e:
+            logger.error(f"Recipe ideas generation failed: {e}")
+            raise RuntimeError(f"Recipe ideas generation failed: {str(e)}")
+
 # Global OpenAI service instance
 openai_service = OpenAIService()
