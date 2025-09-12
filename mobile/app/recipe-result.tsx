@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -22,6 +23,7 @@ import { Button } from '../components/Button';
 import { RecipeGenerationResponse } from '../types/api';
 import { apiService } from '../services/api';
 import { PreferencesService } from '../services/preferences';
+import { getRandomLoadingButtonText } from '../constants/copy';
 
 
 export default function RecipeResultScreen() {
@@ -38,6 +40,13 @@ export default function RecipeResultScreen() {
   const [modificationText, setModificationText] = useState('');
   const [isModifying, setIsModifying] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  
+  // Progress visualization state for modification
+  const [modifyCurrentAttempt, setModifyCurrentAttempt] = useState(1);
+  const [modifySegmentProgress, setModifySegmentProgress] = useState(0);
+  const [modifyCurrentButtonText, setModifyCurrentButtonText] = useState('Update Recipe');
+  const [modifyAttemptStartTime, setModifyAttemptStartTime] = useState<number | null>(null);
+  const modifyProgressAnimation = useRef(new Animated.Value(0)).current;
 
   // Load user preferences for category order
   useEffect(() => {
@@ -111,6 +120,78 @@ export default function RecipeResultScreen() {
     checkSavedStatus();
   }, [recipeData?.id]);
 
+  // Modification progress visualization logic
+  
+  // Cycle button text every 3 seconds during modification
+  useEffect(() => {
+    if (!isModifying) return;
+
+    const interval = setInterval(() => {
+      setModifyCurrentButtonText(getRandomLoadingButtonText());
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isModifying]);
+
+  // Progress animation within current segment for modification
+  useEffect(() => {
+    if (!isModifying || !modifyAttemptStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - modifyAttemptStartTime;
+      const maxTime = 20000; // 20 seconds max per attempt
+      const progress = Math.min(elapsed / maxTime, 1);
+      
+      setModifySegmentProgress(progress);
+    }, 100); // Update every 100ms for smooth animation
+
+    return () => clearInterval(interval);
+  }, [isModifying, modifyAttemptStartTime]);
+
+  // Reset modification progress state when loading starts/stops
+  useEffect(() => {
+    if (isModifying) {
+      setModifyCurrentAttempt(1);
+      setModifySegmentProgress(0);
+      setModifyAttemptStartTime(Date.now());
+      setModifyCurrentButtonText(getRandomLoadingButtonText());
+    } else {
+      setModifyCurrentAttempt(1);
+      setModifySegmentProgress(0);
+      setModifyAttemptStartTime(null);
+      setModifyCurrentButtonText('Update Recipe');
+    }
+  }, [isModifying]);
+
+  // Calculate total modification progress and animate
+  const updateModifyProgressAnimation = () => {
+    const completedSegments = modifyCurrentAttempt - 1;
+    const currentSegmentProgress = modifySegmentProgress / 3;
+    const totalProgress = (completedSegments / 3) + currentSegmentProgress;
+    
+    Animated.timing(modifyProgressAnimation, {
+      toValue: totalProgress,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Update modification animation when progress changes
+  useEffect(() => {
+    if (isModifying) {
+      updateModifyProgressAnimation();
+    } else {
+      modifyProgressAnimation.setValue(0);
+    }
+  }, [modifyCurrentAttempt, modifySegmentProgress, isModifying]);
+
+  // Utility function to advance to next modification attempt
+  const advanceToNextModifyAttempt = () => {
+    setModifyCurrentAttempt(prev => Math.min(prev + 1, 3));
+    setModifySegmentProgress(0);
+    setModifyAttemptStartTime(Date.now());
+  };
+
   const handleIngredientToggle = (ingredientId: string, checked: boolean) => {
     setIngredients(prev => 
       prev.map(ingredient => 
@@ -145,28 +226,52 @@ export default function RecipeResultScreen() {
   };
 
   const handleModifyRecipe = async () => {
-    if (!recipeData || !modificationText.trim()) return;
+    if (!recipeData) return;
+    
+    if (!modificationText.trim()) {
+      setModifyCurrentButtonText('Please enter modification request');
+      setTimeout(() => setModifyCurrentButtonText('Update Recipe'), 3000);
+      return;
+    }
     
     try {
       setIsModifying(true);
       
-      // Call the recipe modification API
+      // Call the recipe modification API with attempt tracking
       const modifiedRecipe = await apiService.modifyRecipe(recipeData.id, modificationText.trim());
       
-      // Update the current recipe data with the modified version
-      setRecipeData(modifiedRecipe);
+      // Success animation - quickly fill all remaining segments
+      setModifyCurrentAttempt(3);
+      setModifySegmentProgress(1);
       
-      // Clear the modification text
-      setModificationText('');
-      
-      // Show success message
-      Alert.alert('Recipe Updated', 'Your recipe has been successfully modified!');
+      // Wait for success animation, then complete
+      setTimeout(() => {
+        setIsModifying(false);
+        
+        // Update the current recipe data with the modified version
+        setRecipeData(modifiedRecipe);
+        
+        // Clear the modification text
+        setModificationText('');
+        
+        // Show success message
+        Alert.alert('Recipe Updated', 'Your recipe has been successfully modified!');
+      }, 300); // 0.3 second success animation
       
     } catch (error) {
       console.error('Failed to modify recipe:', error);
-      Alert.alert('Error', 'Failed to modify the recipe. Please try again.');
-    } finally {
       setIsModifying(false);
+      
+      // Show error in button for retry
+      if (error instanceof Error) {
+        setModifyCurrentButtonText('Something went wrong. Tap to retry.');
+      } else {
+        setModifyCurrentButtonText('Something went wrong. Tap to retry.');
+      }
+      
+      // Reset progress to show error state
+      setModifyCurrentAttempt(1);
+      setModifySegmentProgress(0);
     }
   };
 
@@ -389,7 +494,14 @@ export default function RecipeResultScreen() {
             <TextInput
               placeholder="e.g., make it vegetarian, reduce salt, add more spice, use chicken instead of beef..."
               value={modificationText}
-              onChangeText={setModificationText}
+              onChangeText={(text) => {
+                setModificationText(text);
+                
+                // Reset error state when user starts editing
+                if (modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry')) {
+                  setModifyCurrentButtonText('Update Recipe');
+                }
+              }}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -401,15 +513,88 @@ export default function RecipeResultScreen() {
 
             <View style={{ marginTop: theme.spacing.lg }} />
 
-            <Button
+            {/* Enhanced Modify Button with Progress Bar */}
+            <TouchableOpacity
               onPress={handleModifyRecipe}
-              variant="primary"
-              disabled={!modificationText.trim() || isModifying}
-              loading={isModifying}
-              leftIcon="magic-staff"
+              disabled={(!modificationText.trim() && modifyCurrentButtonText === 'Update Recipe') || 
+                       (isModifying && !modifyCurrentButtonText.includes('Tap to retry'))}
+              style={{
+                minHeight: 64,
+                borderRadius: theme.borderRadius['2xl'],
+                backgroundColor: !modificationText.trim() 
+                  ? theme.colors.theme.border 
+                  : modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry')
+                    ? theme.colors.theme.surface // Neutral background for error state
+                    : isModifying 
+                      ? theme.colors.wizard.primary + '30' // Lighter background when loading
+                      : theme.colors.wizard.primary,
+                borderWidth: modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry') ? 2 : 0,
+                borderColor: modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry') ? '#f59e0b' : 'transparent',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
             >
-              {isModifying ? "Modifying Recipe..." : "Update Recipe"}
-            </Button>
+              
+              {/* Progress Bar Fill */}
+              {isModifying && (
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    width: modifyProgressAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                    backgroundColor: theme.colors.wizard.primary,
+                  }}
+                />
+              )}
+              
+              {/* Button Content */}
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: theme.spacing.xl,
+                  paddingVertical: theme.spacing.lg,
+                }}
+              >
+                {!isModifying && (
+                  <MaterialCommunityIcons
+                    name={modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry')
+                      ? "refresh"
+                      : "magic-staff"}
+                    size={24}
+                    color={!modificationText.trim() 
+                      ? theme.colors.theme.textTertiary 
+                      : modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry')
+                        ? '#f59e0b'
+                        : 'white'}
+                    style={{ marginRight: theme.spacing.md }}
+                  />
+                )}
+                
+                <Text
+                  style={{
+                    fontSize: theme.typography.fontSize.titleMedium,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    color: !modificationText.trim() 
+                      ? theme.colors.theme.textTertiary 
+                      : modifyCurrentButtonText.includes('failed') || modifyCurrentButtonText.includes('retry')
+                        ? '#f59e0b'
+                        : 'white',
+                    fontFamily: theme.typography.fontFamily.body,
+                    textAlign: 'center',
+                  }}
+                >
+                  {modifyCurrentButtonText}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </ExpandableCard>
           </ScrollView>
         </View>

@@ -6,7 +6,7 @@ import {
 } from '../types/api';
 import { PreferencesService } from './preferences';
 import { SavedRecipesService } from './savedRecipes';
-import * as SecureStore from 'expo-secure-store';
+import AuthService from './auth';
 
 // Configuration - Uses environment variable
 const getApiBaseUrl = () => {
@@ -34,7 +34,7 @@ class APIService {
   }
 
   /**
-   * Get authentication headers for API requests
+   * Get authentication headers for API requests with automatic token refresh
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
@@ -42,7 +42,8 @@ class APIService {
     };
 
     try {
-      const token = await SecureStore.getItemAsync('auth_token');
+      const token = await AuthService.getStoredToken();
+      
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -51,6 +52,51 @@ class APIService {
     }
 
     return headers;
+  }
+
+  /**
+   * Make authenticated request with automatic token refresh on 401
+   */
+  private async makeAuthenticatedRequest(
+    url: string, 
+    options: RequestInit = {}
+  ): Promise<Response> {
+    let headers = await this.getAuthHeaders();
+    
+    // Merge with provided headers
+    if (options.headers) {
+      headers = { ...headers, ...options.headers };
+    }
+
+    let response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    // If 401, try to refresh token and retry once
+    if (response.status === 401) {
+      console.log('🔄 Received 401, attempting token refresh...');
+      
+      const refreshResult = await AuthService.refreshToken();
+      
+      if (refreshResult) {
+        console.log('✅ Token refreshed, retrying request');
+        
+        // Update headers with new token
+        headers['Authorization'] = `Bearer ${refreshResult.accessToken}`;
+        
+        // Retry the request with new token
+        response = await fetch(url, {
+          ...options,
+          headers,
+        });
+      } else {
+        console.log('❌ Token refresh failed');
+        throw new Error('Authentication expired. Please log in again.');
+      }
+    }
+
+    return response;
   }
 
   /**
@@ -329,10 +375,8 @@ class APIService {
       const preferences = await PreferencesService.loadPreferences();
       const requestWithPrefs = { ...request, preferences };
 
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/jobs/recipes/generate`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/jobs/recipes/generate`, {
         method: 'POST',
-        headers,
         body: JSON.stringify(requestWithPrefs),
       });
 
@@ -355,10 +399,8 @@ class APIService {
    */
   async getJobStatus(jobId: string): Promise<RecipeJobStatus> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/jobs/recipes/${jobId}/status`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/jobs/recipes/${jobId}/status`, {
         method: 'GET',
-        headers,
       });
 
       if (!response.ok) {
@@ -378,10 +420,8 @@ class APIService {
    */
   async getJobResult(jobId: string): Promise<RecipeJobResult> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/jobs/recipes/${jobId}/result`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/jobs/recipes/${jobId}/result`, {
         method: 'GET',
-        headers,
       });
 
       if (!response.ok) {

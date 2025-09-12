@@ -24,10 +24,6 @@ export default function WelcomeScreen() {
     router.push('/auth/signin');
   };
 
-  const handleProfilePress = () => {
-    router.push('/profile');
-  };
-
   const handleToggleTheme = () => {
     if (themeMode === 'system') {
       setThemeMode(isDark ? 'light' : 'dark');
@@ -89,33 +85,14 @@ export default function WelcomeScreen() {
         <View
           style={{
             flexDirection: 'row',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center',
             paddingTop: insets.top + theme.spacing.md,
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: theme.spacing.lg,
           }}
         >
-          {/* Left side - Profile/Settings */}
-          <TouchableOpacity
-            onPress={handleProfilePress}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: theme.colors.theme.backgroundSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MaterialCommunityIcons
-              name="account-cog"
-              size={24}
-              color={theme.colors.theme.textSecondary}
-            />
-          </TouchableOpacity>
-          
-          {/* Right side - Theme toggle */}
+          {/* Theme toggle */}
           <TouchableOpacity
             onPress={handleToggleTheme}
             style={{

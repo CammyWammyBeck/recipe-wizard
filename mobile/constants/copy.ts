@@ -236,6 +236,35 @@ export const SUGGESTION_VIBE_IDEAS: string[] = [
   'Satisfying slurpable goodness'
 ];
 
+// Loading button text that cycles during recipe generation
+export const LOADING_BUTTON_TEXTS: string[] = [
+  'Creating magic...',
+  'Cooking up something special...',
+  'Mixing ingredients with love...',
+  'Crafting your perfect recipe...',
+  'Stirring up culinary inspiration...',
+  'Whisking together flavors...',
+  'Seasoning with creativity...',
+  'Simmering brilliant ideas...',
+  'Blending taste and technique...',
+  'Garnishing with perfection...',
+  'Marinating in possibilities...',
+  'Caramelizing flavor profiles...',
+  'Infusing recipe wisdom...',
+  'Dicing up deliciousness...',
+  'Sautéing sensational dishes...',
+  'Braising beautiful combinations...',
+  'Roasting remarkable recipes...',
+  'Grilling gourmet goodness...',
+  'Poaching perfect pairings...',
+  'Steaming stellar suggestions...',
+  'Baking brilliant concepts...',
+  'Frying fantastic ideas...',
+  'Broiling beautiful dishes...',
+  'Smoking superb selections...',
+  'Flambéing fabulous flavors...'
+];
+
 // Utilities
 export function randomItem<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -266,4 +295,8 @@ export function getRandomSuggestions(count = 8): string[] {
 export function getRandomSuggestion(): string {
   const combined = [...SUGGESTION_IDEAS, ...SUGGESTION_VIBE_IDEAS];
   return randomItem(combined);
+}
+
+export function getRandomLoadingButtonText(): string {
+  return randomItem(LOADING_BUTTON_TEXTS);
 }

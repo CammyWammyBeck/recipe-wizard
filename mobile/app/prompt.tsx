@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, TextInput, useAppTheme, ExpandableCard } from '../components';
@@ -12,6 +12,7 @@ import {
   getRandomHeroTitle,
   getRandomSuggestion,
   getRandomSuggestions,
+  getRandomLoadingButtonText,
 } from '../constants/copy';
 
 export default function PromptScreen() {
@@ -21,10 +22,18 @@ export default function PromptScreen() {
   
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('Creating magic...');
   const [error, setError] = useState<string | null>(null);
   const [servings, setServings] = useState<number>(4);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | undefined>(undefined);
+  
+  // Progress visualization state
+  const [currentAttempt, setCurrentAttempt] = useState(1); // 1, 2, or 3
+  const [segmentProgress, setSegmentProgress] = useState(0); // 0-1 progress within current segment  
+  const [currentButtonText, setCurrentButtonText] = useState('Generate Recipe');
+  const [attemptStartTime, setAttemptStartTime] = useState<number | null>(null);
+  const [isInErrorState, setIsInErrorState] = useState(false);
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  const textCyclingInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize per-recipe overrides from saved preferences
   useEffect(() => {
@@ -35,17 +44,108 @@ export default function PromptScreen() {
     })();
   }, []);
 
+  // Cycle button text every 3 seconds during loading
+  useEffect(() => {
+    // Clear any existing interval
+    if (textCyclingInterval.current) {
+      clearInterval(textCyclingInterval.current);
+      textCyclingInterval.current = null;
+    }
+
+    if (!isLoading || isInErrorState) return;
+
+    textCyclingInterval.current = setInterval(() => {
+      // Only cycle text if still loading and not in error state
+      if (isLoading && !isInErrorState) {
+        setCurrentButtonText(getRandomLoadingButtonText());
+      }
+    }, 3000);
+
+    return () => {
+      if (textCyclingInterval.current) {
+        clearInterval(textCyclingInterval.current);
+        textCyclingInterval.current = null;
+      }
+    };
+  }, [isLoading, isInErrorState]);
+
+  // Progress animation within current segment
+  useEffect(() => {
+    if (!isLoading || !attemptStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - attemptStartTime;
+      const maxTime = 20000; // 20 seconds max per attempt
+      const progress = Math.min(elapsed / maxTime, 1);
+      
+      setSegmentProgress(progress);
+    }, 100); // Update every 100ms for smooth animation
+
+    return () => clearInterval(interval);
+  }, [isLoading, attemptStartTime]);
+
+  // Reset progress state when loading starts/stops
+  useEffect(() => {
+    if (isLoading) {
+      setCurrentAttempt(1);
+      setSegmentProgress(0);
+      setAttemptStartTime(Date.now());
+      setCurrentButtonText(getRandomLoadingButtonText());
+      setIsInErrorState(false); // Clear error state when starting new request
+    } else {
+      setCurrentAttempt(1);
+      setSegmentProgress(0);
+      setAttemptStartTime(null);
+      // Don't automatically reset button text - let success/error handlers do it
+    }
+  }, [isLoading]);
+
+  // Utility function to advance to next attempt
+  const advanceToNextAttempt = () => {
+    setCurrentAttempt(prev => Math.min(prev + 1, 3));
+    setSegmentProgress(0);
+    setAttemptStartTime(Date.now());
+  };
+
+  // Calculate total progress across all segments and animate
+  const updateProgressAnimation = () => {
+    const completedSegments = currentAttempt - 1;
+    const currentSegmentProgress = segmentProgress / 3; // Each segment is 1/3 of total
+    const totalProgress = (completedSegments / 3) + currentSegmentProgress;
+    
+    Animated.timing(progressAnimation, {
+      toValue: totalProgress,
+      duration: 300, // 0.3 second smooth transition
+      useNativeDriver: false, // Width animations require false
+    }).start();
+  };
+
+  // Update animation when progress changes
+  useEffect(() => {
+    if (isLoading) {
+      updateProgressAnimation();
+    } else {
+      progressAnimation.setValue(0);
+    }
+  }, [currentAttempt, segmentProgress, isLoading]);
+
   const handleCreateRecipe = async () => {
     if (!prompt.trim()) {
-      setError('Please enter a recipe description');
+      setCurrentButtonText('Please enter a recipe description');
+      setTimeout(() => setCurrentButtonText('Generate Recipe'), 3000);
       return;
     }
 
     setIsLoading(true);
-    setError(null);
-    setLoadingMessage('Starting recipe generation...');
     
     try {
+      // TEMPORARY: Force API failure for testing - remove this!
+      if (prompt.toLowerCase().includes('test fail')) {
+        console.log('Forcing API failure for testing');
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+        throw new Error('Something went wrong. Tap to retry.');
+      }
+
       // Start async job
       console.log('Creating recipe with prompt:', prompt);
       const jobResponse = await apiService.startRecipeGeneration({
@@ -57,51 +157,63 @@ export default function PromptScreen() {
       });
       
       console.log('🚀 Job started:', jobResponse.job_id);
-      setLoadingMessage('Generating your recipe...');
       
-      // Poll job until completion with progress updates
+      // Poll job until completion with attempt tracking
       const recipeData = await apiService.pollJobUntilComplete(
         jobResponse.job_id,
         (status) => {
-          // Update loading message based on job status
-          const progressMessages = {
-            'pending': 'Getting ready...',
-            'processing': `Creating your recipe (${status.progress}%)...`,
-          };
-          
-          const message = progressMessages[status.status as keyof typeof progressMessages] || 
-                         `Processing (${status.progress}%)...`;
-          setLoadingMessage(message);
-          
-          // Add estimated completion if available
-          if (status.estimated_completion) {
-            setLoadingMessage(`${message} - ${status.estimated_completion} remaining`);
+          // Track attempts based on retry_count in status
+          if (status.retry_count !== undefined) {
+            const newAttempt = Math.min(status.retry_count + 1, 3);
+            if (newAttempt > currentAttempt) {
+              advanceToNextAttempt();
+            }
           }
         }
       );
       
-      setIsLoading(false);
+      // Success animation - quickly fill all remaining segments
+      setCurrentAttempt(3);
+      setSegmentProgress(1);
       
-      // Navigate with the recipe data
-      router.push({
-        pathname: '/recipe-result',
-        params: { 
-          userPrompt: prompt,
-          recipeData: JSON.stringify(recipeData),
-          timestamp: Date.now().toString()
-        }
-      });
+      // Wait for success animation, then navigate
+      setTimeout(() => {
+        setIsLoading(false);
+        setCurrentButtonText('Generate Recipe'); // Reset on success
+        
+        // Navigate with the recipe data
+        router.push({
+          pathname: '/recipe-result',
+          params: { 
+            userPrompt: prompt,
+            recipeData: JSON.stringify(recipeData),
+            timestamp: Date.now().toString()
+          }
+        });
+      }, 300); // 0.3 second success animation
       
     } catch (error) {
       console.error('Recipe generation error:', error);
-      setIsLoading(false);
       
-      // Show error on this screen, don't navigate
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError('Unable to generate recipe. Please check your connection and try again.');
+      // IMMEDIATELY stop text cycling to prevent race condition
+      if (textCyclingInterval.current) {
+        clearInterval(textCyclingInterval.current);
+        textCyclingInterval.current = null;
       }
+      
+      setIsLoading(false);
+      setIsInErrorState(true);
+      
+      // Show error in button for retry
+      if (error instanceof Error) {
+        setCurrentButtonText(error.message);
+      } else {
+        setCurrentButtonText('Something went wrong. Tap to retry.');
+      }
+      
+      // Reset progress to show error state
+      setCurrentAttempt(1);
+      setSegmentProgress(0);
     }
   };
 
@@ -416,6 +528,12 @@ export default function PromptScreen() {
                 onChangeText={(text) => {
                   setPrompt(text);
                   if (error) setError(null);
+                  
+                  // Reset error state when user starts editing
+                  if (isInErrorState) {
+                    setIsInErrorState(false);
+                    setCurrentButtonText('Generate Recipe');
+                  }
                 }}
                 multiline
                 style={{
@@ -461,39 +579,6 @@ export default function PromptScreen() {
             </View>
           </View>
 
-          {/* Error Message */}
-          {error && (
-            <View
-              style={{
-                backgroundColor: theme.colors.theme.surface,
-                borderLeftWidth: 4,
-                borderLeftColor: '#ef4444',
-                borderRadius: theme.borderRadius.md,
-                padding: theme.spacing.lg,
-                marginBottom: theme.spacing.lg,
-                ...theme.shadows.surface,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MaterialCommunityIcons
-                  name="alert-circle"
-                  size={20}
-                  color="#ef4444"
-                  style={{ marginRight: theme.spacing.sm }}
-                />
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: theme.typography.fontSize.bodyMedium,
-                    color: theme.colors.theme.text,
-                    fontFamily: theme.typography.fontFamily.body,
-                  }}
-                >
-                  {error}
-                </Text>
-              </View>
-            </View>
-          )}
 
           {/* Recipe Options (non-persistent, collapsed by default) */}
           <ExpandableCard
@@ -646,23 +731,89 @@ export default function PromptScreen() {
             </View>
           </ExpandableCard>
 
-          {/* Enhanced Create Button */}
+          {/* Enhanced Create Button with Progress Bar */}
           <View style={{ marginBottom: theme.spacing['3xl'] }}>
-            <Button
-              variant="primary"
-              size="large"
-              fullWidth
+            <TouchableOpacity
               onPress={handleCreateRecipe}
-              loading={isLoading}
-              leftIcon="auto-fix"
-              disabled={!prompt.trim()}
+              disabled={(!prompt.trim() && currentButtonText === 'Generate Recipe') || 
+                       (isLoading && !currentButtonText.includes('Tap to retry'))}
               style={{
                 minHeight: 64,
-                ...theme.shadows.wizard.glow,
+                borderRadius: theme.borderRadius['2xl'],
+                backgroundColor: !prompt.trim() 
+                  ? theme.colors.theme.border 
+                  : currentButtonText.includes('failed') || currentButtonText.includes('retry')
+                    ? theme.colors.theme.surface // Neutral background for error state
+                    : isLoading 
+                      ? theme.colors.wizard.primary + '30' // Lighter background when loading
+                      : theme.colors.wizard.primary,
+                borderWidth: currentButtonText.includes('failed') || currentButtonText.includes('retry') ? 2 : 0,
+                borderColor: currentButtonText.includes('failed') || currentButtonText.includes('retry') ? '#f59e0b' : 'transparent', // Orange border instead of red
+                overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              {isLoading ? loadingMessage : 'Generate Recipe'}
-            </Button>
+              
+              {/* Progress Bar Fill */}
+              {isLoading && (
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    width: progressAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                    backgroundColor: theme.colors.wizard.primary,
+                  }}
+                />
+              )}
+              
+              {/* Button Content */}
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: theme.spacing.xl,
+                  paddingVertical: theme.spacing.lg,
+                }}
+              >
+                {!isLoading && (
+                  <MaterialCommunityIcons
+                    name={currentButtonText.includes('failed') || currentButtonText.includes('retry') 
+                      ? "refresh" 
+                      : "auto-fix"}
+                    size={24}
+                    color={!prompt.trim() 
+                      ? theme.colors.theme.textTertiary 
+                      : currentButtonText.includes('failed') || currentButtonText.includes('retry')
+                        ? '#f59e0b' // Orange icon for retry
+                        : 'white'}
+                    style={{ marginRight: theme.spacing.md }}
+                  />
+                )}
+                
+                <Text
+                  style={{
+                    fontSize: theme.typography.fontSize.titleMedium,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    color: !prompt.trim() 
+                      ? theme.colors.theme.textTertiary 
+                      : currentButtonText.includes('failed') || currentButtonText.includes('retry')
+                        ? '#f59e0b' // Orange text for retry state
+                        : 'white',
+                    fontFamily: theme.typography.fontFamily.body,
+                    textAlign: 'center',
+                  }}
+                >
+                  {currentButtonText}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* Enhanced Suggestions */}

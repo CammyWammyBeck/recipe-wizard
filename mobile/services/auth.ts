@@ -48,6 +48,7 @@ interface BackendTokenResponse {
 // Secure storage keys
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
+const CREDENTIALS_KEY = 'auth_credentials';
 
 // Helper function to transform backend response to frontend format
 function transformTokenResponse(backendResponse: BackendTokenResponse): AuthTokens {
@@ -89,8 +90,9 @@ export class AuthService {
       const backendTokens: BackendTokenResponse = await response.json();
       const tokens = transformTokenResponse(backendTokens);
       
-      // Store tokens securely
+      // Store tokens and credentials securely for refresh
       await this.storeTokens(tokens);
+      await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(credentials));
       
       console.log('✅ Login successful for:', tokens.user.email);
       return tokens;
@@ -124,8 +126,12 @@ export class AuthService {
       const backendTokens: BackendTokenResponse = await response.json();
       const tokens = transformTokenResponse(backendTokens);
       
-      // Store tokens securely
+      // Store tokens and credentials securely for refresh
       await this.storeTokens(tokens);
+      await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify({
+        email: userData.email,
+        password: userData.password
+      }));
       
       console.log('✅ Registration successful for:', tokens.user.email);
       return tokens;
@@ -180,6 +186,7 @@ export class AuthService {
   static async clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
+    await SecureStore.deleteItemAsync(CREDENTIALS_KEY);
   }
 
   /**
@@ -224,15 +231,45 @@ export class AuthService {
         return null;
       }
 
-      const response = await fetch(`${apiService.baseUrl}/api/auth/refresh`, {
+      // First try JWT refresh
+      let response = await fetch(`${apiService.baseUrl}/api/auth/refresh`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      if (response.ok) {
+        const backendTokens: BackendTokenResponse = await response.json();
+        const newTokens = transformTokenResponse(backendTokens);
+        await this.storeTokens(newTokens);
+        
+        console.log('✅ Token refreshed successfully via JWT');
+        return newTokens;
+      }
+
+      // JWT refresh failed, try credential-based re-authentication
+      console.log('⚠️ JWT refresh failed, trying credential re-authentication...');
+      
+      const credentialsJson = await SecureStore.getItemAsync(CREDENTIALS_KEY);
+      if (!credentialsJson) {
+        console.log('❌ No stored credentials for re-authentication');
+        await this.clearTokens();
+        return null;
+      }
+
+      const credentials: LoginCredentials = JSON.parse(credentialsJson);
+      
+      response = await fetch(`${apiService.baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
       if (!response.ok) {
-        // Refresh failed, clear tokens
+        console.log('❌ Credential re-authentication failed');
         await this.clearTokens();
         return null;
       }
@@ -241,7 +278,7 @@ export class AuthService {
       const newTokens = transformTokenResponse(backendTokens);
       await this.storeTokens(newTokens);
       
-      console.log('✅ Token refreshed successfully');
+      console.log('✅ Token refreshed successfully via re-authentication');
       return newTokens;
       
     } catch (error) {
