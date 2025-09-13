@@ -128,27 +128,41 @@ class ShoppingListService:
     ):
         """Create a new shopping list item"""
 
-        # Create shopping list item
+        # Create shopping list item with proper unit handling
+        consolidated_display = self._format_ingredient_display(ingredient.amount, ingredient.unit)
         item = ShoppingListItem(
             shopping_list_id=shopping_list.id,
             ingredient_name=ingredient.name,
             category=ingredient.category,
-            consolidated_display=f"{ingredient.amount} {ingredient.unit or ''}".strip(),
+            consolidated_display=consolidated_display,
             is_checked=False
         )
         self.db.add(item)
         self.db.flush()  # Get the item ID
 
-        # Create recipe breakdown
+        # Create recipe breakdown with proper formatting
+        quantity_display = self._format_ingredient_display(ingredient.amount, ingredient.unit)
         breakdown = ShoppingListRecipeBreakdown(
             shopping_item_id=item.id,
             recipe_id=recipe.id,
             original_ingredient_id=ingredient.id,
             recipe_title=recipe.title,
-            quantity=f"{ingredient.amount} {ingredient.unit or ''}".strip()
+            quantity=quantity_display
         )
         self.db.add(breakdown)
 
+    def _format_ingredient_display(self, amount: str, unit: str) -> str:
+        """Format ingredient display, handling N/A units properly"""
+        if not unit or unit.lower() == 'n/a':
+            # For non-measurement ingredients like "pinch" or "to taste"
+            # Check if amount is already descriptive (like "to taste", "pinch", etc.)
+            amount_lower = amount.lower() if amount else ""
+            if any(word in amount_lower for word in ['pinch', 'to taste', 'handful', 'dash', 'splash', 'squeeze']):
+                return amount  # e.g., "pinch", "to taste"
+            else:
+                return amount  # e.g., "1", "2" (for items like eggs, onions)
+        else:
+            return f"{amount} {unit}".strip()
 
     def _calculate_consolidated_display(self, item: ShoppingListItem) -> str:
         """Calculate consolidated display for an item with multiple recipe sources"""
@@ -168,6 +182,11 @@ class ShoppingListService:
 
             # Try to sum numeric quantities with same units
             try:
+                # Skip N/A quantities and descriptive amounts
+                if not breakdown.quantity or any(word in breakdown.quantity.lower() for word in ['pinch', 'to taste', 'handful', 'dash', 'splash']):
+                    has_numeric = False
+                    continue
+
                 parts = breakdown.quantity.split()
                 if len(parts) >= 1:
                     num_part = parts[0]
@@ -242,20 +261,29 @@ class ShoppingListService:
 
     def clear_shopping_list(self, user_id: int) -> bool:
         """Clear all items from user's shopping list"""
-        shopping_list = self.get_or_create_shopping_list(user_id)
+        try:
+            shopping_list = self.get_or_create_shopping_list(user_id)
 
-        # Delete all items (cascades to breakdowns)
-        self.db.query(ShoppingListItem).filter(
-            ShoppingListItem.shopping_list_id == shopping_list.id
-        ).delete()
+            # Delete all recipe breakdowns first
+            self.db.query(ShoppingListRecipeBreakdown).join(ShoppingListItem).filter(
+                ShoppingListItem.shopping_list_id == shopping_list.id
+            ).delete(synchronize_session=False)
 
-        # Delete all recipe associations
-        self.db.query(ShoppingListRecipeAssociation).filter(
-            ShoppingListRecipeAssociation.shopping_list_id == shopping_list.id
-        ).delete()
+            # Delete all items
+            self.db.query(ShoppingListItem).filter(
+                ShoppingListItem.shopping_list_id == shopping_list.id
+            ).delete(synchronize_session=False)
 
-        self.db.commit()
-        return True
+            # Delete all recipe associations
+            self.db.query(ShoppingListRecipeAssociation).filter(
+                ShoppingListRecipeAssociation.shopping_list_id == shopping_list.id
+            ).delete(synchronize_session=False)
+
+            self.db.commit()
+            return True
+        except Exception as e:
+            self.db.rollback()
+            raise e
 
     def remove_recipe_from_shopping_list(
         self,
