@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StatusBar, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { SavedRecipeData } from '../../types/api';
 import { apiService } from '../../services/api';
@@ -17,25 +19,33 @@ export default function HistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load saved recipes
-  useEffect(() => {
-    const loadSavedRecipes = async () => {
-      try {
-        setIsLoading(true);
-        const recipes = await apiService.getSavedRecipes();
-        setSavedRecipes(recipes || []);
-        setError(null);
-      } catch (error) {
-        console.error('Error loading saved recipes:', error);
-        setError('Failed to load saved recipes');
-        setSavedRecipes([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Load saved recipes function
+  const loadSavedRecipes = async () => {
+    try {
+      setIsLoading(true);
+      const recipes = await apiService.getSavedRecipes();
+      setSavedRecipes(recipes || []);
+      setError(null);
+    } catch (error) {
+      console.error('Error loading saved recipes:', error);
+      setError('Failed to load saved recipes');
+      setSavedRecipes([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Load on component mount
+  useEffect(() => {
     loadSavedRecipes();
   }, []);
+
+  // Also reload whenever the screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSavedRecipes();
+    }, [])
+  );
 
   const handleDeleteRecipe = async (recipeId: string) => {
     try {
@@ -46,6 +56,54 @@ export default function HistoryScreen() {
       // Could add error toast here
     }
   };
+
+  // Loading screen
+  if (isLoading) {
+    return (
+      <>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.colors.theme.background}
+          translucent
+        />
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: theme.colors.theme.background,
+          }}
+          edges={['top']}
+        >
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons
+              name="book-open-variant"
+              size={64}
+              color={theme.colors.wizard.primary}
+              style={{ marginBottom: 16 }}
+            />
+            <Text
+              style={{
+                fontSize: theme.typography.fontSize.headlineSmall,
+                fontWeight: theme.typography.fontWeight.semibold,
+                color: theme.colors.theme.text,
+                marginBottom: 8,
+              }}
+            >
+              Loading Recipe History
+            </Text>
+            <Text
+              style={{
+                fontSize: theme.typography.fontSize.bodyMedium,
+                color: theme.colors.theme.textSecondary,
+                textAlign: 'center',
+              }}
+            >
+              Gathering your saved recipes...
+            </Text>
+          </View>
+        </SafeAreaView>
+      </>
+    );
+  }
 
   return (
     <>

@@ -74,6 +74,53 @@ export function IngredientsSection({
 }: IngredientsSectionProps) {
   const { theme } = useAppTheme();
 
+  // Create the shopping list button for header
+  const renderShoppingListButton = () => {
+    if (!onAddToShoppingList) return null;
+
+    const isSuccess = addToShoppingListText.includes('✓');
+
+    return (
+      <TouchableOpacity
+        onPress={(e) => {
+          e.stopPropagation(); // Prevent expanding/collapsing the card
+          onAddToShoppingList();
+        }}
+        disabled={addToShoppingListLoading}
+        style={{
+          backgroundColor: isSuccess
+            ? '#10b981' // Green for success state
+            : addToShoppingListLoading
+              ? theme.colors.theme.border
+              : theme.colors.wizard.primary,
+          borderRadius: theme.borderRadius.md,
+          paddingVertical: theme.spacing.sm,
+          paddingHorizontal: theme.spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          opacity: addToShoppingListLoading ? 0.7 : 1,
+        }}
+      >
+        <MaterialCommunityIcons
+          name="cart-plus"
+          size={16}
+          color="white"
+          style={{ marginRight: theme.spacing.xs }}
+        />
+        <Text
+          style={{
+            color: 'white',
+            fontSize: theme.typography.fontSize.bodySmall,
+            fontWeight: theme.typography.fontWeight.semibold,
+            fontFamily: theme.typography.fontFamily.body,
+          }}
+        >
+          {isSuccess ? 'Added ✓' : 'Add'}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   // Group ingredients by category
   const ingredientsByCategory = ingredients.reduce((acc, ingredient) => {
     const category = ingredient.category;
@@ -141,6 +188,7 @@ export function IngredientsSection({
       icon="format-list-checkbox"
       defaultExpanded={false}
       style={style}
+      rightContent={renderShoppingListButton()}
     >
       <View style={{ gap: theme.spacing.lg }}>
         {finalCategoryOrder.map(categoryKey => {
@@ -231,43 +279,6 @@ export function IngredientsSection({
           );
         })}
 
-        {/* Add to Shopping List Button */}
-        {onAddToShoppingList && (
-          <TouchableOpacity
-            onPress={onAddToShoppingList}
-            disabled={addToShoppingListLoading}
-            style={{
-              backgroundColor: addToShoppingListLoading
-                ? theme.colors.theme.border
-                : theme.colors.wizard.primary,
-              borderRadius: theme.borderRadius.lg,
-              paddingVertical: theme.spacing.lg,
-              paddingHorizontal: theme.spacing.xl,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: theme.spacing.md,
-              opacity: addToShoppingListLoading ? 0.7 : 1,
-            }}
-          >
-            <MaterialCommunityIcons
-              name="cart-plus"
-              size={20}
-              color="white"
-              style={{ marginRight: theme.spacing.sm }}
-            />
-            <Text
-              style={{
-                fontSize: theme.typography.fontSize.titleMedium,
-                fontWeight: theme.typography.fontWeight.semibold,
-                color: 'white',
-                fontFamily: theme.typography.fontFamily.body,
-              }}
-            >
-              {addToShoppingListText}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         {/* Shopping Tips */}
         <View

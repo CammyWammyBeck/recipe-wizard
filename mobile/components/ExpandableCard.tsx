@@ -20,6 +20,7 @@ interface ExpandableCardProps {
   contentStyle?: ViewStyle;
   onToggle?: (expanded: boolean) => void;
   compact?: boolean;
+  rightContent?: React.ReactNode;
 }
 
 export function ExpandableCard({
@@ -33,6 +34,7 @@ export function ExpandableCard({
   contentStyle,
   onToggle,
   compact = false,
+  rightContent,
 }: ExpandableCardProps) {
   const { theme } = useAppTheme();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -170,6 +172,13 @@ export function ExpandableCard({
             </Text>
           )}
         </View>
+
+        {/* Right Content */}
+        {rightContent && (
+          <View style={{ marginRight: theme.spacing.sm }}>
+            {rightContent}
+          </View>
+        )}
 
         {/* Chevron */}
         <View
