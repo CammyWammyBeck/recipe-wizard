@@ -640,7 +640,7 @@ class APIService {
         isChecked
       };
 
-      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/item/${itemId}`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/items/${itemId}`, {
         method: 'PUT',
         body: JSON.stringify(request),
       });

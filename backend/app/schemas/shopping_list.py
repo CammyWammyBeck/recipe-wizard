@@ -42,13 +42,19 @@ class ShoppingListResponseSchema(BaseModel):
 
 class AddRecipeToShoppingListRequest(BaseModel):
     """Schema for adding a recipe to shopping list"""
-    recipe_id: str = Field(..., description="ID of the recipe to add")
-    user_id: Optional[str] = Field(None, description="User ID (optional for authenticated users)")
+    recipe_id: str = Field(..., description="ID of the recipe to add", alias="recipeId")
+    user_id: Optional[str] = Field(None, description="User ID (optional for authenticated users)", alias="userId")
+
+    class Config:
+        populate_by_name = True  # Allows both snake_case and camelCase
 
 class UpdateShoppingListItemRequest(BaseModel):
     """Schema for updating shopping list item"""
-    item_id: str = Field(..., description="ID of the item to update")
-    is_checked: bool = Field(..., description="New checked status")
+    item_id: str = Field(..., description="ID of the item to update", alias="itemId")
+    is_checked: bool = Field(..., description="New checked status", alias="isChecked")
+
+    class Config:
+        populate_by_name = True  # Allows both snake_case and camelCase
 
 class ShoppingListItemUpdateResponse(BaseModel):
     """Schema for shopping list item update response"""
