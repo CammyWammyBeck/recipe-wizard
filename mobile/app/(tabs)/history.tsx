@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
@@ -11,7 +11,6 @@ import { AllHistorySection } from '../../components/AllHistorySection';
 
 export default function HistoryScreen() {
   const { theme, isDark } = useAppTheme();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipeData[]>([]);
@@ -54,29 +53,30 @@ export default function HistoryScreen() {
 
   return (
     <>
-      <StatusBar 
+      <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={theme.colors.theme.background}
         translucent
       />
-      
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={0}
+
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: theme.colors.theme.background,
+        }}
+        edges={['top']}
       >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: theme.colors.theme.background,
-          }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={0}
         >
           {/* Header */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              paddingTop: insets.top + theme.spacing.md,
+              paddingTop: theme.spacing.md,
               paddingHorizontal: theme.spacing.xl,
               paddingBottom: theme.spacing.lg,
             }}
@@ -147,7 +147,7 @@ export default function HistoryScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={{
               paddingHorizontal: theme.spacing.xl,
-              paddingBottom: insets.bottom + theme.spacing.xl,
+              paddingBottom: theme.spacing.xl,
               gap: theme.spacing.xl,
             }}
             showsVerticalScrollIndicator={false}
@@ -163,8 +163,8 @@ export default function HistoryScreen() {
             {/* All History Section */}
             <AllHistorySection />
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </>
   );
 }

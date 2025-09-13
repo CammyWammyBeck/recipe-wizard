@@ -190,7 +190,7 @@ export default function ShoppingListScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <MaterialCommunityIcons
             name="cart-outline"
@@ -225,7 +225,7 @@ export default function ShoppingListScreen() {
   if (shoppingList.length === 0) {
     return (
       <PaperProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
           <View style={{
             flex: 1,
             justifyContent: 'center',
@@ -267,7 +267,7 @@ export default function ShoppingListScreen() {
 
   return (
     <PaperProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
         {/* Header */}
         <View style={{
           flexDirection: 'row',

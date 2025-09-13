@@ -471,6 +471,7 @@ export default function PromptScreen() {
           flex: 1,
           backgroundColor: theme.colors.theme.background,
         }}
+        edges={['top']}
       >
         
         <KeyboardAvoidingView

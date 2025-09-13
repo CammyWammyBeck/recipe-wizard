@@ -260,7 +260,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: theme.colors.theme.text, fontSize: 16 }}>
             Loading preferences...
@@ -271,7 +271,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
       <Header 
         title="Profile & Settings"
         showBackButton

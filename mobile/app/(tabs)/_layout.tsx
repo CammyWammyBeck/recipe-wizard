@@ -1,21 +1,23 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const theme = useTheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.outline,
-        },
-        headerShown: false,
-      }}>
+    <SafeAreaProvider>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarStyle: {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.outline,
+          },
+          headerShown: false,
+        }}>
       <Tabs.Screen
         name="prompt"
         options={{
@@ -53,5 +55,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </SafeAreaProvider>
   );
 }

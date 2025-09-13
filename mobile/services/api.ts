@@ -9,23 +9,7 @@ import {
 import { PreferencesService } from './preferences';
 import { SavedRecipesService } from './savedRecipes';
 import AuthService from './auth';
-
-// Configuration - Uses environment variable
-const getApiBaseUrl = () => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-  
-  if (!apiUrl) {
-    throw new Error(
-      'EXPO_PUBLIC_API_BASE_URL environment variable is required. ' +
-      'Please create a .env file in the mobile directory with: ' +
-      'EXPO_PUBLIC_API_BASE_URL=http://YOUR_LOCAL_IP:8000'
-    );
-  }
-  
-  return apiUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+import { API_BASE_URL } from './config';
 
 class APIService {
   public baseUrl: string;  // Made public so AuthService can access it

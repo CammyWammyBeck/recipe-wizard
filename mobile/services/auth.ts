@@ -1,6 +1,6 @@
 // Authentication service for handling user login/registration
 import * as SecureStore from 'expo-secure-store';
-import { apiService } from './api';
+import { API_BASE_URL } from './config';
 
 export interface LoginCredentials {
   email: string;
@@ -74,7 +74,7 @@ export class AuthService {
     try {
       console.log('🔐 Attempting login for:', credentials.email);
       
-      const response = await fetch(`${apiService.baseUrl}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ export class AuthService {
     try {
       console.log('📝 Attempting registration for:', userData.email);
       
-      const response = await fetch(`${apiService.baseUrl}/api/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ export class AuthService {
       const token = await this.getStoredToken();
       if (token) {
         try {
-          await fetch(`${apiService.baseUrl}/api/auth/logout`, {
+          await fetch(`${API_BASE_URL}/api/auth/logout`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -232,7 +232,7 @@ export class AuthService {
       }
 
       // First try JWT refresh
-      let response = await fetch(`${apiService.baseUrl}/api/auth/refresh`, {
+      let response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -260,7 +260,7 @@ export class AuthService {
 
       const credentials: LoginCredentials = JSON.parse(credentialsJson);
       
-      response = await fetch(`${apiService.baseUrl}/api/auth/login`, {
+      response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -298,7 +298,7 @@ export class AuthService {
         return null;
       }
 
-      const response = await fetch(`${apiService.baseUrl}/api/auth/verify-token`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-token`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
