@@ -57,18 +57,9 @@ class ShoppingListService:
         # Get or create shopping list
         shopping_list = self.get_or_create_shopping_list(user_id)
 
-        # Check if recipe is already added
-        existing_association = self.db.query(ShoppingListRecipeAssociation).filter(
-            and_(
-                ShoppingListRecipeAssociation.shopping_list_id == shopping_list.id,
-                ShoppingListRecipeAssociation.recipe_id == recipe_id
-            )
-        ).first()
+        # Allow adding the same recipe multiple times; do not block duplicates
 
-        if existing_association:
-            raise ValueError("Recipe is already in the shopping list")
-
-        # Create recipe association
+        # Track that this recipe was added (duplicates allowed)
         recipe_association = ShoppingListRecipeAssociation(
             shopping_list_id=shopping_list.id,
             recipe_id=recipe_id
