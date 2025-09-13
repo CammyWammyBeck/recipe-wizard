@@ -70,8 +70,8 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
 
   return (
     <ExpandableCard
-      title={recipe.title}
-      subtitle={`${recipe.instructions.length} steps${getTotalTime() ? ` • ${getTotalTime()}` : ''}`}
+      title={recipe.title || 'Recipe'}
+      subtitle={`${recipe.instructions?.length || 0} steps${getTotalTime() ? ` • ${getTotalTime()}` : ''}`}
       icon="chef-hat"
       defaultExpanded={true}
       style={style}
@@ -238,11 +238,11 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
           </Text>
 
           <View style={{ gap: theme.spacing.lg }}>
-            {recipe.instructions.map((instruction, index) => (
+            {(recipe.instructions || []).map((instruction, index) => (
               <InstructionStep
                 key={index}
                 stepNumber={index + 1}
-                instruction={instruction}
+                instruction={instruction || `Step ${index + 1}`}
               />
             ))}
           </View>

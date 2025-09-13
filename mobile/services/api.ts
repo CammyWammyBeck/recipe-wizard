@@ -435,7 +435,20 @@ class APIService {
   async startRecipeGeneration(request: RecipeGenerationRequest): Promise<RecipeJobCreateResponse> {
     try {
       const preferences = await PreferencesService.loadPreferences();
-      const requestWithPrefs = { ...request, preferences };
+
+      // Merge prompt-level overrides without persisting changes (same logic as generateRecipe)
+      const { overrides, ...rest } = request as RecipeGenerationRequest & { overrides?: any };
+      const mergedPreferences = {
+        ...preferences,
+        ...(overrides?.defaultServings !== undefined
+          ? { defaultServings: overrides.defaultServings }
+          : {}),
+        ...(overrides?.preferredDifficulty !== undefined
+          ? { preferredDifficulty: overrides.preferredDifficulty }
+          : {}),
+      };
+
+      const requestWithPrefs = { ...rest, preferences: mergedPreferences };
 
       const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/jobs/recipes/generate`, {
         method: 'POST',
