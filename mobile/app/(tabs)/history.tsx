@@ -77,6 +77,7 @@ export default function HistoryScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={{
               paddingHorizontal: theme.spacing.xl,
+              paddingTop: theme.spacing.xl,
               paddingBottom: theme.spacing.xl,
               gap: theme.spacing.xl,
             }}
