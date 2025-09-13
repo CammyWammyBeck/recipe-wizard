@@ -264,10 +264,17 @@ class ShoppingListService:
         try:
             shopping_list = self.get_or_create_shopping_list(user_id)
 
-            # Delete all recipe breakdowns first
-            self.db.query(ShoppingListRecipeBreakdown).join(ShoppingListItem).filter(
+            # Get all shopping list item IDs first
+            item_ids = self.db.query(ShoppingListItem.id).filter(
                 ShoppingListItem.shopping_list_id == shopping_list.id
-            ).delete(synchronize_session=False)
+            ).all()
+            item_ids = [item_id[0] for item_id in item_ids]
+
+            # Delete all recipe breakdowns for these items
+            if item_ids:
+                self.db.query(ShoppingListRecipeBreakdown).filter(
+                    ShoppingListRecipeBreakdown.shopping_item_id.in_(item_ids)
+                ).delete(synchronize_session=False)
 
             # Delete all items
             self.db.query(ShoppingListItem).filter(
