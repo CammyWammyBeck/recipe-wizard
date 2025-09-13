@@ -429,32 +429,30 @@ export default function ShoppingListScreen() {
                           </Text>
                         </View>
 
-                        {/* Dropdown arrow for multiple recipes */}
-                        {item.recipeBreakdown.length > 1 && (
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation(); // Prevent checkbox toggle
-                              toggleItemExpanded(item.id);
-                            }}
-                            style={{
-                              padding: 8,
-                              borderRadius: 12,
-                              backgroundColor: expandedItems.has(item.id)
-                                ? theme.colors.wizard.primary + '15'
-                                : 'transparent',
-                            }}
-                          >
-                            <MaterialCommunityIcons
-                              name={expandedItems.has(item.id) ? "chevron-up" : "chevron-down"}
-                              size={20}
-                              color={expandedItems.has(item.id) ? theme.colors.wizard.primary : theme.colors.theme.textTertiary}
-                            />
-                          </TouchableOpacity>
-                        )}
+                        {/* Dropdown arrow for recipe breakdown */}
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation(); // Prevent checkbox toggle
+                            toggleItemExpanded(item.id);
+                          }}
+                          style={{
+                            padding: 8,
+                            borderRadius: 12,
+                            backgroundColor: expandedItems.has(item.id)
+                              ? theme.colors.wizard.primary + '15'
+                              : 'transparent',
+                          }}
+                        >
+                          <MaterialCommunityIcons
+                            name={expandedItems.has(item.id) ? "chevron-up" : "chevron-down"}
+                            size={20}
+                            color={expandedItems.has(item.id) ? theme.colors.wizard.primary : theme.colors.theme.textTertiary}
+                          />
+                        </TouchableOpacity>
                       </TouchableOpacity>
 
                       {/* Expanded recipe breakdown */}
-                      {expandedItems.has(item.id) && item.recipeBreakdown.length > 1 && (
+                      {expandedItems.has(item.id) && (
                         <View style={{
                           marginTop: 4,
                           marginLeft: 40,

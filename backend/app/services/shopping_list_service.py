@@ -172,8 +172,6 @@ class ShoppingListService:
         """Calculate consolidated display for an item with multiple recipe sources"""
         # This is a simplified version - you might want more sophisticated consolidation
         breakdowns = item.recipe_breakdowns
-        print(f"DEBUG: Calculating consolidated display for {item.ingredient_name}")
-        print(f"DEBUG: Found {len(breakdowns)} breakdowns")
 
         if len(breakdowns) == 1:
             return breakdowns[0].quantity
@@ -185,7 +183,6 @@ class ShoppingListService:
         common_unit = None
 
         for breakdown in breakdowns:
-            print(f"DEBUG: Processing breakdown: {breakdown.quantity}")
             quantities.append(breakdown.quantity)
 
             # Try to sum numeric quantities with same units
@@ -220,23 +217,15 @@ class ShoppingListService:
             except (ValueError, ZeroDivisionError):
                 has_numeric = False
 
-        print(f"DEBUG: has_numeric={has_numeric}, total_numeric={total_numeric}, common_unit={common_unit}")
-
         if has_numeric and len(breakdowns) > 1:
             # Show consolidated total
             if total_numeric == int(total_numeric):
-                result = f"{int(total_numeric)} {common_unit}".strip()
-                print(f"DEBUG: Returning consolidated result: {result}")
-                return result
+                return f"{int(total_numeric)} {common_unit}".strip()
             else:
-                result = f"{total_numeric:.2f} {common_unit}".strip().rstrip('0').rstrip('.')
-                print(f"DEBUG: Returning consolidated result: {result}")
-                return result
+                return f"{total_numeric:.2f} {common_unit}".strip().rstrip('0').rstrip('.')
         else:
             # Show breakdown
-            result = " + ".join(quantities)
-            print(f"DEBUG: Returning breakdown result: {result}")
-            return result
+            return " + ".join(quantities)
 
     def get_shopping_list(self, user_id: int) -> ShoppingListResponseSchema:
         """Get user's shopping list"""
