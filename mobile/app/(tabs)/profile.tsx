@@ -18,9 +18,9 @@ import { useAppTheme } from '../../constants/ThemeProvider';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button';
 import { TextInput } from '../../components/TextInput';
+import { HeaderComponent } from '../../components/HeaderComponent';
 import { ExpandableCard } from '../../components/ExpandableCard';
 import { CheckboxItem } from '../../components/CheckboxItem';
-import { Header } from '../../components/Header';
 import {
   UserPreferences,
   DEFAULT_USER_PREFERENCES,
@@ -272,10 +272,9 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
-      <Header 
+      <HeaderComponent
         title="Profile & Settings"
-        showBackButton
-        onBackPress={() => router.push('/prompt')}
+        subtitle="Customize your cooking experience"
       />
       
       <KeyboardAvoidingView 

@@ -9,6 +9,7 @@ import { apiService } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { CheckboxItem } from '../../components/CheckboxItem';
+import { HeaderComponent } from '../../components/HeaderComponent';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ShoppingListScreen() {
@@ -268,57 +269,35 @@ export default function ShoppingListScreen() {
   return (
     <PaperProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
-        {/* Header */}
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingHorizontal: 20,
-          paddingVertical: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.theme.border,
-        }}>
-          <View>
-            <Text style={{
-              fontSize: theme.typography.fontSize.headlineMedium,
-              fontWeight: theme.typography.fontWeight.bold,
-              color: theme.colors.theme.text,
-            }}>
-              Shopping List
-            </Text>
-            <Text style={{
-              fontSize: theme.typography.fontSize.bodyMedium,
-              color: theme.colors.theme.textSecondary,
-              marginTop: 2,
-            }}>
-              {completedItems}/{totalItems} items completed
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {!isOnline && (
-              <MaterialCommunityIcons
-                name="wifi-off"
-                size={20}
-                color={theme.colors.theme.textSecondary}
-                style={{ marginRight: 16 }}
-              />
-            )}
-            <TouchableOpacity
-              onPress={() => setClearDialogVisible(true)}
-              disabled={shoppingList.length === 0}
-              style={{
-                opacity: shoppingList.length === 0 ? 0.5 : 1,
-              }}
-            >
-              <MaterialCommunityIcons
-                name="delete-sweep"
-                size={24}
-                color={theme.colors.theme.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <HeaderComponent
+          title="Shopping List"
+          subtitle={`${completedItems}/${totalItems} items completed`}
+          rightContent={
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {!isOnline && (
+                <MaterialCommunityIcons
+                  name="wifi-off"
+                  size={20}
+                  color={theme.colors.theme.textSecondary}
+                  style={{ marginRight: 16 }}
+                />
+              )}
+              <TouchableOpacity
+                onPress={() => setClearDialogVisible(true)}
+                disabled={shoppingList.length === 0}
+                style={{
+                  opacity: shoppingList.length === 0 ? 0.5 : 1,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="delete-sweep"
+                  size={24}
+                  color={theme.colors.theme.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          }
+        />
 
         <ScrollView
           style={{ flex: 1 }}

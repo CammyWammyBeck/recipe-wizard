@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { View, Text, StatusBar, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { SavedRecipeData } from '../../types/api';
 import { apiService } from '../../services/api';
 import { SavedRecipesSection } from '../../components/SavedRecipesSection';
 import { AllHistorySection } from '../../components/AllHistorySection';
+import { HeaderComponent } from '../../components/HeaderComponent';
 
 export default function HistoryScreen() {
   const { theme, isDark } = useAppTheme();
@@ -36,10 +36,6 @@ export default function HistoryScreen() {
 
     loadSavedRecipes();
   }, []);
-
-  const handleBack = () => {
-    router.back();
-  };
 
   const handleDeleteRecipe = async (recipeId: string) => {
     try {
@@ -71,76 +67,10 @@ export default function HistoryScreen() {
           style={{ flex: 1 }}
           keyboardVerticalOffset={0}
         >
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingTop: theme.spacing.md,
-              paddingHorizontal: theme.spacing.xl,
-              paddingBottom: theme.spacing.lg,
-            }}
-          >
-            <TouchableOpacity
-              onPress={handleBack}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: theme.colors.theme.backgroundSecondary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: theme.spacing.lg,
-              }}
-            >
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={24}
-                color={theme.colors.theme.textSecondary}
-              />
-            </TouchableOpacity>
-
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: theme.typography.fontSize.titleLarge,
-                  fontWeight: theme.typography.fontWeight.bold,
-                  color: theme.colors.theme.text,
-                  fontFamily: theme.typography.fontFamily.body,
-                }}
-              >
-                Recipe History
-              </Text>
-              <Text
-                style={{
-                  fontSize: theme.typography.fontSize.bodyMedium,
-                  color: theme.colors.theme.textSecondary,
-                  fontFamily: theme.typography.fontFamily.body,
-                  marginTop: theme.spacing.xs,
-                }}
-              >
-                Your saved favorites and complete recipe history
-              </Text>
-            </View>
-
-            {/* History decoration */}
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: theme.colors.wizard.primary + '20',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <MaterialCommunityIcons
-                name="history"
-                size={24}
-                color={theme.colors.wizard.primary}
-              />
-            </View>
-          </View>
+          <HeaderComponent
+            title="Recipe History"
+            subtitle="Your saved recipes and cooking history"
+          />
 
           {/* Content */}
           <ScrollView
