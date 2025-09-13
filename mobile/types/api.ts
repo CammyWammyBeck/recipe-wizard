@@ -177,6 +177,35 @@ export const DEFAULT_GROCERY_CATEGORIES = [
   'spices'
 ] as const;
 
+// Shopping List Types
+export interface ShoppingListItem {
+  id: string;
+  ingredientName: string;
+  category: string;
+  consolidatedDisplay: string; // "2 whole + 1 cup"
+  recipeBreakdown: {
+    recipeId: string;
+    recipeTitle: string;
+    quantity: string;
+  }[];
+  isChecked: boolean;
+}
+
+export interface ShoppingListResponse {
+  items: ShoppingListItem[];
+  lastUpdated: string;
+}
+
+export interface AddRecipeToShoppingListRequest {
+  recipeId: string;
+  userId?: string;
+}
+
+export interface UpdateShoppingListItemRequest {
+  itemId: string;
+  isChecked: boolean;
+}
+
 // Default user preferences
 export const DEFAULT_USER_PREFERENCES: Omit<UserPreferences, 'id' | 'userId' | 'updatedAt' | 'createdAt'> = {
   units: 'metric',

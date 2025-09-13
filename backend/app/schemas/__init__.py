@@ -16,6 +16,11 @@ from .conversation import (
     ConversationFeedbackCreate, ConversationFeedbackResponse, UserRatingUpdate,
     ConversationAnalytics, ConversationSession
 )
+from .shopping_list import (
+    ShoppingListItemSchema, ShoppingListResponseSchema, ShoppingListRecipeBreakdownSchema,
+    AddRecipeToShoppingListRequest, UpdateShoppingListItemRequest, ShoppingListItemUpdateResponse,
+    ClearShoppingListRequest, ClearShoppingListResponse
+)
 
 __all__ = [
     # Base schemas
@@ -32,8 +37,13 @@ __all__ = [
     "RecipeIdeaGenerationRequest", "RecipeIdea", "RecipeIdeasResponse",
     "SavedRecipeCreate", "SavedRecipeUpdate", "SavedRecipeResponse", "SaveRecipeSuccessResponse",
     
-    # Conversation schemas  
+    # Conversation schemas
     "ConversationCreate", "ConversationUpdate", "ConversationResponse", "ConversationAPI",
     "ConversationFeedbackCreate", "ConversationFeedbackResponse", "UserRatingUpdate",
-    "ConversationAnalytics", "ConversationSession"
+    "ConversationAnalytics", "ConversationSession",
+
+    # Shopping list schemas
+    "ShoppingListItemSchema", "ShoppingListResponseSchema", "ShoppingListRecipeBreakdownSchema",
+    "AddRecipeToShoppingListRequest", "UpdateShoppingListItemRequest", "ShoppingListItemUpdateResponse",
+    "ClearShoppingListRequest", "ClearShoppingListResponse"
 ]

@@ -14,18 +14,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DragList, { DragListRenderItemInfo } from 'react-native-draglist';
 
-import { useAppTheme } from '../constants/ThemeProvider';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/Button';
-import { TextInput } from '../components/TextInput';
-import { ExpandableCard } from '../components/ExpandableCard';
-import { CheckboxItem } from '../components/CheckboxItem';
-import { Header } from '../components/Header';
-import { 
-  UserPreferences, 
-  DEFAULT_USER_PREFERENCES, 
-  DEFAULT_GROCERY_CATEGORIES 
-} from '../types/api';
+import { useAppTheme } from '../../constants/ThemeProvider';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../../components/Button';
+import { TextInput } from '../../components/TextInput';
+import { ExpandableCard } from '../../components/ExpandableCard';
+import { CheckboxItem } from '../../components/CheckboxItem';
+import { Header } from '../../components/Header';
+import {
+  UserPreferences,
+  DEFAULT_USER_PREFERENCES,
+  DEFAULT_GROCERY_CATEGORIES
+} from '../../types/api';
 
 const STORAGE_KEY = '@recipe_wizard_preferences';
 

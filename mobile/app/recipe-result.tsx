@@ -24,6 +24,7 @@ import { RecipeGenerationResponse } from '../types/api';
 import { apiService } from '../services/api';
 import { PreferencesService } from '../services/preferences';
 import { getRandomLoadingButtonText } from '../constants/copy';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 
 export default function RecipeResultScreen() {
@@ -31,6 +32,7 @@ export default function RecipeResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { isOnline } = useNetworkStatus();
 
   const [recipeData, setRecipeData] = useState<RecipeGenerationResponse | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -40,6 +42,10 @@ export default function RecipeResultScreen() {
   const [modificationText, setModificationText] = useState('');
   const [isModifying, setIsModifying] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+
+  // Shopping list state
+  const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
+  const [addToShoppingListText, setAddToShoppingListText] = useState('Add to Shopping List');
   
   // Progress visualization state for modification
   const [modifyCurrentAttempt, setModifyCurrentAttempt] = useState(1);
@@ -225,50 +231,91 @@ export default function RecipeResultScreen() {
     }
   };
 
+  const handleAddToShoppingList = async () => {
+    if (!recipeData) return;
+
+    // Check network connectivity
+    if (!isOnline) {
+      Alert.alert(
+        'No Internet Connection',
+        'Please connect to the internet to add recipes to your shopping list.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      setIsAddingToShoppingList(true);
+      setAddToShoppingListText('Adding...');
+
+      await apiService.addRecipeToShoppingList(recipeData.id);
+
+      // Show success state
+      setAddToShoppingListText('Added to Shopping List ✓');
+
+      // Reset after 5 seconds
+      setTimeout(() => {
+        setAddToShoppingListText('Add to Shopping List');
+        setIsAddingToShoppingList(false);
+      }, 5000);
+
+    } catch (error) {
+      console.error('Failed to add to shopping list:', error);
+      setIsAddingToShoppingList(false);
+      setAddToShoppingListText('Add to Shopping List');
+
+      Alert.alert(
+        'Error',
+        'Failed to add recipe to shopping list. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const handleModifyRecipe = async () => {
     if (!recipeData) return;
-    
+
     if (!modificationText.trim()) {
       setModifyCurrentButtonText('Please enter modification request');
       setTimeout(() => setModifyCurrentButtonText('Update Recipe'), 3000);
       return;
     }
-    
+
     try {
       setIsModifying(true);
-      
+
       // Call the recipe modification API with attempt tracking
       const modifiedRecipe = await apiService.modifyRecipe(recipeData.id, modificationText.trim());
-      
+
       // Success animation - quickly fill all remaining segments
       setModifyCurrentAttempt(3);
       setModifySegmentProgress(1);
-      
+
       // Wait for success animation, then complete
       setTimeout(() => {
         setIsModifying(false);
-        
+
         // Update the current recipe data with the modified version
         setRecipeData(modifiedRecipe);
-        
+
         // Clear the modification text
         setModificationText('');
-        
+
         // Show success message
         Alert.alert('Recipe Updated', 'Your recipe has been successfully modified!');
       }, 300); // 0.3 second success animation
-      
+
     } catch (error) {
       console.error('Failed to modify recipe:', error);
       setIsModifying(false);
-      
+
       // Show error in button for retry
       if (error instanceof Error) {
         setModifyCurrentButtonText('Something went wrong. Tap to retry.');
       } else {
         setModifyCurrentButtonText('Something went wrong. Tap to retry.');
       }
-      
+
       // Reset progress to show error state
       setModifyCurrentAttempt(1);
       setModifySegmentProgress(0);
@@ -463,10 +510,13 @@ export default function RecipeResultScreen() {
             keyboardShouldPersistTaps="handled"
           >
           {/* Ingredients Section */}
-          <IngredientsSection 
+          <IngredientsSection
             ingredients={ingredients}
             onIngredientToggle={handleIngredientToggle}
             categoryOrder={categoryOrder}
+            onAddToShoppingList={handleAddToShoppingList}
+            addToShoppingListLoading={isAddingToShoppingList}
+            addToShoppingListText={addToShoppingListText}
           />
 
           {/* Recipe Section */}

@@ -27,7 +27,7 @@ from fastapi_limiter import FastAPILimiter
 import redis.asyncio as redis
 import json
 from .database import init_database, check_database_connection
-from .routers import auth, users, recipes
+from .routers import auth, users, recipes, shopping_list
 from .services.llm_service import check_llm_service_status
 from .utils.database_health import get_database_health, is_database_healthy, ensure_database_ready
 from .utils.cors_utils import test_cors_origins, CORSOriginValidator
@@ -206,6 +206,7 @@ logger.info("Rate limiting handled by FastAPILimiter with Redis backend")
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(recipes.router)
+app.include_router(shopping_list.router)
 
 # Import and include async job router
 from .routers import jobs

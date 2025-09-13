@@ -1,0 +1,65 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+
+class ShoppingListRecipeBreakdownSchema(BaseModel):
+    """Schema for recipe breakdown in shopping list items"""
+    recipe_id: str = Field(..., description="ID of the recipe")
+    recipe_title: str = Field(..., description="Title of the recipe")
+    quantity: str = Field(..., description="Quantity needed for this recipe")
+
+    class Config:
+        from_attributes = True
+
+class ShoppingListItemSchema(BaseModel):
+    """Schema for shopping list items"""
+    id: str = Field(..., description="Unique identifier for the item")
+    ingredient_name: str = Field(..., description="Name of the ingredient")
+    category: str = Field(..., description="Grocery store category")
+    consolidated_display: str = Field(..., description="Consolidated quantity display")
+    recipe_breakdown: List[ShoppingListRecipeBreakdownSchema] = Field(
+        default_factory=list,
+        description="Breakdown by recipe"
+    )
+    is_checked: bool = Field(default=False, description="Whether item is checked off")
+
+    class Config:
+        from_attributes = True
+
+class ShoppingListResponseSchema(BaseModel):
+    """Schema for shopping list API response"""
+    items: List[ShoppingListItemSchema] = Field(
+        default_factory=list,
+        description="List of shopping list items"
+    )
+    last_updated: Optional[datetime] = Field(
+        None,
+        description="When the shopping list was last updated"
+    )
+
+    class Config:
+        from_attributes = True
+
+class AddRecipeToShoppingListRequest(BaseModel):
+    """Schema for adding a recipe to shopping list"""
+    recipe_id: str = Field(..., description="ID of the recipe to add")
+    user_id: Optional[str] = Field(None, description="User ID (optional for authenticated users)")
+
+class UpdateShoppingListItemRequest(BaseModel):
+    """Schema for updating shopping list item"""
+    item_id: str = Field(..., description="ID of the item to update")
+    is_checked: bool = Field(..., description="New checked status")
+
+class ShoppingListItemUpdateResponse(BaseModel):
+    """Schema for shopping list item update response"""
+    success: bool = Field(..., description="Whether the update was successful")
+    item: Optional[ShoppingListItemSchema] = Field(None, description="Updated item data")
+
+class ClearShoppingListRequest(BaseModel):
+    """Schema for clearing shopping list"""
+    user_id: Optional[str] = Field(None, description="User ID (optional for authenticated users)")
+
+class ClearShoppingListResponse(BaseModel):
+    """Schema for clear shopping list response"""
+    success: bool = Field(..., description="Whether the clear operation was successful")
+    message: str = Field(..., description="Response message")

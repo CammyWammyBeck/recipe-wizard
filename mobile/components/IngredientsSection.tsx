@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   ViewStyle,
+  TouchableOpacity,
 } from 'react-native';
 import { useAppTheme } from '../constants/ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,6 +25,9 @@ interface IngredientsSectionProps {
   onIngredientToggle?: (ingredientId: string, checked: boolean) => void;
   categoryOrder?: string[]; // Custom category order from user preferences
   style?: ViewStyle;
+  onAddToShoppingList?: () => void;
+  addToShoppingListLoading?: boolean;
+  addToShoppingListText?: string;
 }
 
 const CATEGORY_CONFIG = {
@@ -64,6 +68,9 @@ export function IngredientsSection({
   onIngredientToggle,
   categoryOrder,
   style,
+  onAddToShoppingList,
+  addToShoppingListLoading = false,
+  addToShoppingListText = "Add to Shopping List",
 }: IngredientsSectionProps) {
   const { theme } = useAppTheme();
 
@@ -129,7 +136,7 @@ export function IngredientsSection({
 
   return (
     <ExpandableCard
-      title="Grocery List"
+      title="Ingredients"
       subtitle={`${getTotalChecked()}/${getTotalCount()} items collected`}
       icon="format-list-checkbox"
       defaultExpanded={false}
@@ -223,6 +230,44 @@ export function IngredientsSection({
             </View>
           );
         })}
+
+        {/* Add to Shopping List Button */}
+        {onAddToShoppingList && (
+          <TouchableOpacity
+            onPress={onAddToShoppingList}
+            disabled={addToShoppingListLoading}
+            style={{
+              backgroundColor: addToShoppingListLoading
+                ? theme.colors.theme.border
+                : theme.colors.wizard.primary,
+              borderRadius: theme.borderRadius.lg,
+              paddingVertical: theme.spacing.lg,
+              paddingHorizontal: theme.spacing.xl,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: theme.spacing.md,
+              opacity: addToShoppingListLoading ? 0.7 : 1,
+            }}
+          >
+            <MaterialCommunityIcons
+              name="cart-plus"
+              size={20}
+              color="white"
+              style={{ marginRight: theme.spacing.sm }}
+            />
+            <Text
+              style={{
+                fontSize: theme.typography.fontSize.titleMedium,
+                fontWeight: theme.typography.fontWeight.semibold,
+                color: 'white',
+                fontFamily: theme.typography.fontFamily.body,
+              }}
+            >
+              {addToShoppingListText}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Shopping Tips */}
         <View

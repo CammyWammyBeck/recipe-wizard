@@ -3,11 +3,11 @@ import { View, Text, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppTheme } from '../constants/ThemeProvider';
-import { SavedRecipeData } from '../types/api';
-import { apiService } from '../services/api';
-import { SavedRecipesSection } from '../components/SavedRecipesSection';
-import { AllHistorySection } from '../components/AllHistorySection';
+import { useAppTheme } from '../../constants/ThemeProvider';
+import { SavedRecipeData } from '../../types/api';
+import { apiService } from '../../services/api';
+import { SavedRecipesSection } from '../../components/SavedRecipesSection';
+import { AllHistorySection } from '../../components/AllHistorySection';
 
 export default function HistoryScreen() {
   const { theme, isDark } = useAppTheme();

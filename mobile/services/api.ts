@@ -1,9 +1,10 @@
 // API service for handling recipe generation and data persistence
-import { 
-  RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest, 
+import {
+  RecipeGenerationRequest, RecipeGenerationResponse, RecipeModificationRequest,
   RecipeIdeaGenerationRequest, RecipeIdeasResponse,
-  SavedRecipeData, ConversationEntry, RecipeJobCreateResponse, RecipeJobStatus, 
-  RecipeJobResult, RecipeJobError, PaginatedConversationResponse 
+  SavedRecipeData, ConversationEntry, RecipeJobCreateResponse, RecipeJobStatus,
+  RecipeJobResult, RecipeJobError, PaginatedConversationResponse,
+  ShoppingListResponse, AddRecipeToShoppingListRequest, UpdateShoppingListItemRequest
 } from '../types/api';
 import { PreferencesService } from './preferences';
 import { SavedRecipesService } from './savedRecipes';
@@ -574,6 +575,106 @@ class APIService {
         console.error('Error during job polling:', error);
         throw error;
       }
+    }
+  }
+
+  // ========================================
+  // Shopping List Methods
+  // ========================================
+
+  /**
+   * Add a recipe to the user's shopping list
+   */
+  async addRecipeToShoppingList(recipeId: string): Promise<void> {
+    try {
+      const request: AddRecipeToShoppingListRequest = {
+        recipeId
+      };
+
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/add-recipe`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('✅ Recipe added to shopping list:', recipeId);
+    } catch (error) {
+      console.error('Error adding recipe to shopping list:', error);
+      throw new Error('Failed to add recipe to shopping list. Please try again.');
+    }
+  }
+
+  /**
+   * Get the user's shopping list
+   */
+  async getShoppingList(): Promise<ShoppingListResponse> {
+    try {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching shopping list:', error);
+      throw new Error('Failed to load shopping list. Please try again.');
+    }
+  }
+
+  /**
+   * Update a shopping list item's checked status
+   */
+  async updateShoppingListItem(itemId: string, isChecked: boolean): Promise<void> {
+    try {
+      const request: UpdateShoppingListItemRequest = {
+        itemId,
+        isChecked
+      };
+
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/item/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('✅ Shopping list item updated:', itemId, isChecked);
+    } catch (error) {
+      console.error('Error updating shopping list item:', error);
+      throw new Error('Failed to update shopping list item. Please try again.');
+    }
+  }
+
+  /**
+   * Clear all items from the shopping list
+   */
+  async clearShoppingList(): Promise<void> {
+    try {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/clear`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('✅ Shopping list cleared');
+    } catch (error) {
+      console.error('Error clearing shopping list:', error);
+      throw new Error('Failed to clear shopping list. Please try again.');
     }
   }
 }

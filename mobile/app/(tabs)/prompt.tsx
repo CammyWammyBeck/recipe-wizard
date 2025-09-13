@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, KeyboardAvoidingView, Animated } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button, TextInput, useAppTheme, ExpandableCard, PillSlider, PillSliderOption } from '../components';
+import { Button, TextInput, useAppTheme, ExpandableCard, PillSlider, PillSliderOption } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { apiService } from '../services/api';
-import { RecipeIdeasResponse } from '../types/api';
-import { PreferencesService } from '../services/preferences';
-import { UserPreferences } from '../types/api';
+import { apiService } from '../../services/api';
+import { RecipeIdeasResponse } from '../../types/api';
+import { PreferencesService } from '../../services/preferences';
+import { UserPreferences } from '../../types/api';
 import {
   getRandomHeroSubtitle,
   getRandomHeroTitle,
@@ -15,11 +15,10 @@ import {
   getRandomSuggestions,
   getRandomLoadingButtonText,
   getRandomIdeaLoadingButtonText,
-} from '../constants/copy';
+} from '../../constants/copy';
 
 export default function PromptScreen() {
   const { theme, isDark, setThemeMode, themeMode } = useAppTheme();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   
   const [prompt, setPrompt] = useState('');
@@ -312,21 +311,6 @@ export default function PromptScreen() {
     }
   };
 
-  const handleThemeToggle = () => {
-    if (themeMode === 'system') {
-      setThemeMode(isDark ? 'light' : 'dark');
-    } else {
-      setThemeMode(themeMode === 'dark' ? 'light' : 'dark');
-    }
-  };
-
-  const handleProfile = () => {
-    router.push('/profile');
-  };
-
-  const handleHistory = () => {
-    router.push('/history');
-  };
 
   // Fresh randomized copy and suggestions per mount
   const [heroTitle, setHeroTitle] = useState<string>('What shall we cook today?');
@@ -482,77 +466,12 @@ export default function PromptScreen() {
         translucent
       />
       
-      <View
+      <SafeAreaView
         style={{
           flex: 1,
           backgroundColor: theme.colors.theme.background,
         }}
       >
-        {/* Top Navigation Bar */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingTop: insets.top + theme.spacing.md,
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: theme.spacing.lg,
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleProfile}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: theme.colors.theme.backgroundSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MaterialCommunityIcons
-              name="account-circle"
-              size={24}
-              color={theme.colors.theme.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleHistory}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: theme.colors.theme.backgroundSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MaterialCommunityIcons
-              name="bookmark-multiple"
-              size={24}
-              color={theme.colors.theme.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleThemeToggle}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: theme.colors.theme.backgroundSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MaterialCommunityIcons
-              name={isDark ? 'weather-sunny' : 'weather-night'}
-              size={24}
-              color={theme.colors.theme.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
         
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -563,7 +482,8 @@ export default function PromptScreen() {
             ref={scrollViewRef}
             contentContainerStyle={{
               paddingHorizontal: theme.spacing.xl,
-              paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
+              paddingTop: theme.spacing.xl,
+              paddingBottom: theme.spacing.xl,
             }}
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
@@ -1339,7 +1259,7 @@ export default function PromptScreen() {
           </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </View>
+      </SafeAreaView>
     </>
   );
 }

@@ -4,15 +4,20 @@ from .user import User
 from .recipe import Recipe, RecipeIngredient, SavedRecipe
 from .conversation import Conversation, ConversationFeedback
 from .job import RecipeJob
+from .shopping_list import ShoppingList, ShoppingListItem, ShoppingListRecipeBreakdown, ShoppingListRecipeAssociation
 
 __all__ = [
     "Base",
-    "BaseModel", 
+    "BaseModel",
     "User",
     "Recipe",
-    "RecipeIngredient", 
+    "RecipeIngredient",
     "SavedRecipe",
     "Conversation",
     "ConversationFeedback",
-    "RecipeJob"
+    "RecipeJob",
+    "ShoppingList",
+    "ShoppingListItem",
+    "ShoppingListRecipeBreakdown",
+    "ShoppingListRecipeAssociation"
 ]
