@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, RefreshControl } from 'react-native';
 import { Text, Card, Checkbox, Button, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
@@ -7,6 +7,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { ShoppingListItem } from '../../types/api';
 import { apiService } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ShoppingListScreen() {
   const { theme } = useAppTheme();
@@ -15,6 +16,7 @@ export default function ShoppingListScreen() {
   const [loading, setLoading] = useState(true);
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
 
   // Group items by category
   const itemsByCategory = shoppingList.reduce((acc, item) => {
@@ -90,6 +92,13 @@ export default function ShoppingListScreen() {
     loadShoppingList();
   }, []);
 
+  // Also reload whenever the screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadShoppingList();
+    }, [isOnline])
+  );
+
   const loadShoppingList = async () => {
     try {
       setLoading(true);
@@ -122,6 +131,15 @@ export default function ShoppingListScreen() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadShoppingList();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -204,7 +222,19 @@ export default function ShoppingListScreen() {
         </Button>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.wizard.primary}
+          />
+        }
+      >
+        
+        
         {categories.map(category => (
           <Card key={category} style={{ marginBottom: 16 }}>
             <Card.Content>
@@ -282,6 +312,7 @@ export default function ShoppingListScreen() {
           </Card>
         ))}
       </ScrollView>
+      
 
       {/* Clear confirmation dialog */}
       <Portal>

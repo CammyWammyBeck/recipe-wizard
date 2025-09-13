@@ -613,7 +613,8 @@ class APIService {
    */
   async getShoppingList(): Promise<ShoppingListResponse> {
     try {
-      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list`, {
+      // Use trailing slash to avoid redirects that can drop auth headers on some platforms
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/`, {
         method: 'GET',
       });
 

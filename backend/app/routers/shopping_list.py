@@ -82,6 +82,25 @@ async def add_recipe_to_shopping_list(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+# Support no-trailing-slash variant to avoid redirects dropping auth headers on some clients
+@router.get("", response_model=ShoppingListResponseSchema, include_in_schema=False)
+async def get_shopping_list_no_slash(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    try:
+        user_id = current_user.id if current_user else 1
+        service = ShoppingListService(db)
+        shopping_list = service.get_shopping_list(user_id)
+        logger.info(f"Retrieved shopping list (no-slash) for user {user_id} with {len(shopping_list.items)} items")
+        return shopping_list
+    except Exception as e:
+        logger.error(f"Error retrieving shopping list (no-slash): {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve shopping list"
+        )
     except Exception as e:
         logger.error(f"Error adding recipe to shopping list: {str(e)}")
         raise HTTPException(
