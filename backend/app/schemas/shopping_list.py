@@ -4,27 +4,30 @@ from datetime import datetime
 
 class ShoppingListRecipeBreakdownSchema(BaseModel):
     """Schema for recipe breakdown in shopping list items"""
-    recipe_id: str = Field(..., description="ID of the recipe")
-    recipe_title: str = Field(..., description="Title of the recipe")
+    recipe_id: str = Field(..., description="ID of the recipe", alias="recipeId")
+    recipe_title: str = Field(..., description="Title of the recipe", alias="recipeTitle")
     quantity: str = Field(..., description="Quantity needed for this recipe")
 
     class Config:
         from_attributes = True
+        populate_by_name = True  # Accept both snake_case and camelCase
 
 class ShoppingListItemSchema(BaseModel):
     """Schema for shopping list items"""
     id: str = Field(..., description="Unique identifier for the item")
-    ingredient_name: str = Field(..., description="Name of the ingredient")
+    ingredient_name: str = Field(..., description="Name of the ingredient", alias="ingredientName")
     category: str = Field(..., description="Grocery store category")
-    consolidated_display: str = Field(..., description="Consolidated quantity display")
+    consolidated_display: str = Field(..., description="Consolidated quantity display", alias="consolidatedDisplay")
     recipe_breakdown: List[ShoppingListRecipeBreakdownSchema] = Field(
         default_factory=list,
-        description="Breakdown by recipe"
+        description="Breakdown by recipe",
+        alias="recipeBreakdown"
     )
-    is_checked: bool = Field(default=False, description="Whether item is checked off")
+    is_checked: bool = Field(default=False, description="Whether item is checked off", alias="isChecked")
 
     class Config:
         from_attributes = True
+        populate_by_name = True  # Accept both snake_case and camelCase
 
 class ShoppingListResponseSchema(BaseModel):
     """Schema for shopping list API response"""
@@ -34,11 +37,13 @@ class ShoppingListResponseSchema(BaseModel):
     )
     last_updated: Optional[datetime] = Field(
         None,
-        description="When the shopping list was last updated"
+        description="When the shopping list was last updated",
+        alias="lastUpdated"
     )
 
     class Config:
         from_attributes = True
+        populate_by_name = True  # Accept both snake_case and camelCase
 
 class AddRecipeToShoppingListRequest(BaseModel):
     """Schema for adding a recipe to shopping list"""
