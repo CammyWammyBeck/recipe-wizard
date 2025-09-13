@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, RefreshControl } from 'react-native';
-import { Text, Card, Checkbox, Button, Portal, Dialog } from 'react-native-paper';
+import { Text, Card, Checkbox, Button, Portal, Dialog, Provider as PaperProvider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
@@ -153,44 +153,47 @@ export default function ShoppingListScreen() {
 
   if (shoppingList.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
-        <View style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: 32
-        }}>
-          <MaterialCommunityIcons
-            name="cart-outline"
-            size={80}
-            color={theme.colors.theme.textSecondary}
-          />
-          <Text
-            variant="headlineSmall"
-            style={{
-              color: theme.colors.theme.text,
-              textAlign: 'center',
-              marginTop: 16,
-              marginBottom: 8
-            }}
-          >
-            Your shopping list is empty
-          </Text>
-          <Text
-            variant="bodyLarge"
-            style={{
-              color: theme.colors.theme.textSecondary,
-              textAlign: 'center'
-            }}
-          >
-            Add recipes to your shopping list from the recipe screen to get started!
-          </Text>
+      <PaperProvider>
+        <View style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
+          <View style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 32
+          }}>
+            <MaterialCommunityIcons
+              name="cart-outline"
+              size={80}
+              color={theme.colors.theme.textSecondary}
+            />
+            <Text
+              variant="headlineSmall"
+              style={{
+                color: theme.colors.theme.text,
+                textAlign: 'center',
+                marginTop: 16,
+                marginBottom: 8
+              }}
+            >
+              Your shopping list is empty
+            </Text>
+            <Text
+              variant="bodyLarge"
+              style={{
+                color: theme.colors.theme.textSecondary,
+                textAlign: 'center'
+              }}
+            >
+              Add recipes to your shopping list from the recipe screen to get started!
+            </Text>
+          </View>
         </View>
-      </View>
+      </PaperProvider>
     );
   }
 
   return (
+    <PaperProvider>
     <View style={{ flex: 1, backgroundColor: theme.colors.theme.background }}>
       {/* Header */}
       <View style={{
@@ -330,5 +333,6 @@ export default function ShoppingListScreen() {
         </Dialog>
       </Portal>
     </View>
+    </PaperProvider>
   );
 }
