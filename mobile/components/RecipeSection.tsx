@@ -29,6 +29,11 @@ interface RecipeSectionProps {
 export function RecipeSection({ recipe, style }: RecipeSectionProps) {
   const { theme } = useAppTheme();
 
+  // Early return if recipe is malformed
+  if (!recipe || typeof recipe !== 'object') {
+    return null;
+  }
+
   const getDifficultyColor = (difficulty?: string) => {
     switch (difficulty) {
       case 'easy':
@@ -56,7 +61,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
   };
 
   const formatTime = (minutes?: number) => {
-    if (!minutes) return '';
+    if (!minutes || minutes <= 0) return '0m';
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -68,10 +73,17 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
     return total > 0 ? formatTime(total) : undefined;
   };
 
+  // Ensure we have a safe string title
+  const safeTitle = typeof recipe.title === 'string' && recipe.title.trim() 
+    ? recipe.title 
+    : 'Recipe';
+
+  const subtitle = `${recipe.instructions?.length || 0} steps${getTotalTime() ? ` • ${getTotalTime()}` : ''}`;
+
   return (
     <ExpandableCard
-      title={recipe.title || 'Recipe'}
-      subtitle={`${recipe.instructions?.length || 0} steps${getTotalTime() ? ` • ${getTotalTime()}` : ''}`}
+      title={String(safeTitle)}
+      subtitle={String(subtitle)}
       icon="chef-hat"
       defaultExpanded={true}
       style={style}
@@ -79,7 +91,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
       <View style={{ gap: theme.spacing.lg }}>
         {/* Recipe Info */}
         <View>
-          {recipe.description && (
+          {recipe.description && typeof recipe.description === 'string' && (
             <Text
               style={{
                 fontSize: theme.typography.fontSize.bodyLarge,
@@ -89,7 +101,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
                 marginBottom: theme.spacing.lg,
               }}
             >
-              {recipe.description}
+              {String(recipe.description)}
             </Text>
           )}
 
@@ -102,7 +114,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
               marginBottom: theme.spacing.lg,
             }}
           >
-            {recipe.servings && (
+            {(recipe.servings ?? 0) > 0 && (
               <View
                 style={{
                   flexDirection: 'row',
@@ -131,7 +143,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
               </View>
             )}
 
-            {recipe.prepTime && (
+            {(recipe.prepTime ?? 0) > 0 && (
               <View
                 style={{
                   flexDirection: 'row',
@@ -160,7 +172,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
               </View>
             )}
 
-            {recipe.cookTime && (
+            {(recipe.cookTime ?? 0) > 0 && (
               <View
                 style={{
                   flexDirection: 'row',
@@ -249,7 +261,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
         </View>
 
         {/* Tips */}
-        {recipe.tips && recipe.tips.length > 0 && (
+        {Array.isArray(recipe.tips) && recipe.tips.length > 0 && (
           <View
             style={{
               backgroundColor: theme.colors.wizard.accent + '10',
@@ -308,7 +320,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
                       lineHeight: theme.typography.fontSize.bodySmall * 1.4,
                     }}
                   >
-                    {tip}
+                    {typeof tip === 'string' ? tip : `Tip ${index + 1}`}
                   </Text>
                 </View>
               ))}

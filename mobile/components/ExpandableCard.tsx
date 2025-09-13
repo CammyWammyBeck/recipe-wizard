@@ -43,6 +43,51 @@ export function ExpandableCard({
     onToggle?.(newExpanded);
   };
 
+  // Safely render children: wrap raw strings/numbers in Text to avoid RN crashes
+  const renderContent = () => {
+    if (typeof children === 'string' || typeof children === 'number') {
+      return (
+        <Text
+          style={{
+            fontSize: theme.typography.fontSize.bodyMedium,
+            color: theme.colors.theme.text,
+            fontFamily: theme.typography.fontFamily.body,
+            lineHeight: theme.typography.fontSize.bodyMedium * 1.4,
+          }}
+        >
+          {children}
+        </Text>
+      );
+    }
+
+    if (Array.isArray(children)) {
+      const allPrimitive = children.every(
+        (child) => typeof child === 'string' || typeof child === 'number'
+      );
+      if (allPrimitive) {
+        return (
+          <View style={{ gap: theme.spacing.sm }}>
+            {children.map((child, idx) => (
+              <Text
+                key={idx}
+                style={{
+                  fontSize: theme.typography.fontSize.bodyMedium,
+                  color: theme.colors.theme.text,
+                  fontFamily: theme.typography.fontFamily.body,
+                  lineHeight: theme.typography.fontSize.bodyMedium * 1.4,
+                }}
+              >
+                {child as string | number}
+              </Text>
+            ))}
+          </View>
+        );
+      }
+    }
+
+    return children;
+  };
+
   return (
     <View
       style={[
@@ -154,7 +199,7 @@ export function ExpandableCard({
             contentStyle,
           ]}
         >
-          {children}
+          {renderContent()}
         </View>
       )}
     </View>
