@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,9 +17,11 @@ import DragList, { DragListRenderItemInfo } from 'react-native-draglist';
 
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePremium } from '../../contexts/PremiumContext';
 import { Button } from '../../components/Button';
 import { TextInput } from '../../components/TextInput';
 import { HeaderComponent } from '../../components/HeaderComponent';
+import { PremiumBadge } from '../../components/PremiumBadge';
 import { ExpandableCard } from '../../components/ExpandableCard';
 import { CheckboxItem } from '../../components/CheckboxItem';
 import {
@@ -52,6 +55,7 @@ export default function ProfileScreen() {
   const { theme, themeMode, setThemeMode, isDark } = useAppTheme();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const { isPremium, isLoading: premiumLoading, setPremiumStatus } = usePremium();
   
   // Refs for clearing TextInputs
   const categoryInputRef = useRef<any>(null);
@@ -88,6 +92,14 @@ export default function ProfileScreen() {
       console.error('Failed to load preferences:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePremium = async () => {
+    try {
+      await setPremiumStatus(!isPremium);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update premium status. Please try again.');
     }
   };
 
@@ -311,6 +323,7 @@ export default function ProfileScreen() {
       <HeaderComponent
         title="Profile & Settings"
         subtitle="Customize your cooking experience"
+        rightContent={<PremiumBadge size="small" />}
       />
       
       <KeyboardAvoidingView 
@@ -926,6 +939,261 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
+
+          {/* Premium Status */}
+          <ExpandableCard
+            title="Premium Status"
+            subtitle={isPremium ? 'Premium Active' : 'Free Plan'}
+            icon={isPremium ? "crown" : "crown-outline"}
+            defaultExpanded={false}
+          >
+            <View style={{ gap: theme.spacing.lg }}>
+              {/* Premium Status Toggle */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: theme.spacing.md,
+                backgroundColor: isPremium
+                  ? theme.colors.wizard.primary + '20'
+                  : theme.colors.theme.surface,
+                borderRadius: theme.borderRadius.lg,
+                borderWidth: isPremium ? 2 : 1,
+                borderColor: isPremium
+                  ? theme.colors.wizard.primary
+                  : theme.colors.theme.border,
+              }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
+                    <MaterialCommunityIcons
+                      name={isPremium ? "crown" : "crown-outline"}
+                      size={24}
+                      color={isPremium
+                        ? theme.colors.wizard.primary
+                        : theme.colors.theme.textSecondary
+                      }
+                      style={{ marginRight: theme.spacing.sm }}
+                    />
+                    <Text style={{
+                      fontSize: theme.typography.fontSize.bodyLarge,
+                      fontWeight: theme.typography.fontWeight.semibold,
+                      color: isPremium
+                        ? theme.colors.wizard.primary
+                        : theme.colors.theme.text,
+                    }}>
+                      {isPremium ? 'Premium Active' : 'Premium Features'}
+                    </Text>
+                  </View>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodySmall,
+                    color: theme.colors.theme.textSecondary,
+                    marginLeft: 32, // Align with title text
+                  }}>
+                    {isPremium
+                      ? 'All premium features unlocked'
+                      : 'Toggle for development testing'
+                    }
+                  </Text>
+                </View>
+
+                <Switch
+                  value={isPremium}
+                  onValueChange={handleTogglePremium}
+                  disabled={premiumLoading}
+                  trackColor={{
+                    false: theme.colors.theme.border,
+                    true: theme.colors.wizard.primary + '60'
+                  }}
+                  thumbColor={isPremium
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.textTertiary
+                  }
+                />
+              </View>
+
+              {/* Premium Benefits List */}
+              <View>
+                <Text style={{
+                  fontSize: theme.typography.fontSize.bodyMedium,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  color: theme.colors.theme.text,
+                  marginBottom: theme.spacing.md,
+                }}>
+                  Premium Features:
+                </Text>
+
+                {[
+                  {
+                    icon: 'lightbulb',
+                    title: 'AI Recipe Ideas',
+                    description: 'Get personalized recipe suggestions based on your preferences'
+                  },
+                  {
+                    icon: 'cart',
+                    title: 'Smart Shopping Lists',
+                    description: 'Organized grocery lists with categories and checkboxes'
+                  },
+                  {
+                    icon: 'history',
+                    title: 'Complete Recipe History',
+                    description: 'Access all your previous recipes and cooking history'
+                  },
+                  {
+                    icon: 'pencil',
+                    title: 'Recipe Modification',
+                    description: 'Edit and customize recipes to match your taste'
+                  }
+                ].map((benefit, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: theme.spacing.sm,
+                      paddingHorizontal: theme.spacing.md,
+                      backgroundColor: isPremium
+                        ? theme.colors.wizard.primary + '10'
+                        : theme.colors.theme.surface + '80',
+                      borderRadius: theme.borderRadius.md,
+                      marginBottom: theme.spacing.sm,
+                      opacity: isPremium ? 1 : 0.7,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={benefit.icon as any}
+                      size={20}
+                      color={isPremium
+                        ? theme.colors.wizard.primary
+                        : theme.colors.theme.textSecondary
+                      }
+                      style={{ marginRight: theme.spacing.md }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{
+                        fontSize: theme.typography.fontSize.bodyMedium,
+                        fontWeight: theme.typography.fontWeight.medium,
+                        color: isPremium
+                          ? theme.colors.theme.text
+                          : theme.colors.theme.textSecondary,
+                        marginBottom: theme.spacing.xs,
+                      }}>
+                        {benefit.title}
+                      </Text>
+                      <Text style={{
+                        fontSize: theme.typography.fontSize.bodySmall,
+                        color: theme.colors.theme.textTertiary,
+                        lineHeight: 18,
+                      }}>
+                        {benefit.description}
+                      </Text>
+                    </View>
+                    {isPremium && (
+                      <MaterialCommunityIcons
+                        name="check-circle"
+                        size={16}
+                        color={theme.colors.status.success}
+                        style={{ marginLeft: theme.spacing.sm }}
+                      />
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              {/* Subscription Management */}
+              <View style={{ gap: theme.spacing.md }}>
+                <TouchableOpacity
+                  onPress={() => router.push('/subscription/manage')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: theme.spacing.md,
+                    backgroundColor: theme.colors.theme.surface,
+                    borderRadius: theme.borderRadius.lg,
+                    borderWidth: 1,
+                    borderColor: theme.colors.theme.border,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <MaterialCommunityIcons
+                      name="cog"
+                      size={20}
+                      color={theme.colors.theme.textSecondary}
+                      style={{ marginRight: theme.spacing.md }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{
+                        fontSize: theme.typography.fontSize.bodyMedium,
+                        fontWeight: theme.typography.fontWeight.medium,
+                        color: theme.colors.theme.text,
+                        marginBottom: theme.spacing.xs,
+                      }}>
+                        Manage Subscription
+                      </Text>
+                      <Text style={{
+                        fontSize: theme.typography.fontSize.bodySmall,
+                        color: theme.colors.theme.textSecondary,
+                      }}>
+                        {isPremium ? 'View billing, change plan, or cancel' : 'View available premium plans'}
+                      </Text>
+                    </View>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={theme.colors.theme.textTertiary}
+                  />
+                </TouchableOpacity>
+
+                {!isPremium && (
+                  <TouchableOpacity
+                    onPress={() => router.push('/subscription/plans')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: theme.spacing.md,
+                      backgroundColor: theme.colors.wizard.primary,
+                      borderRadius: theme.borderRadius.lg,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name="crown"
+                      size={20}
+                      color="#ffffff"
+                      style={{ marginRight: theme.spacing.sm }}
+                    />
+                    <Text style={{
+                      fontSize: theme.typography.fontSize.bodyLarge,
+                      fontWeight: theme.typography.fontWeight.semibold,
+                      color: '#ffffff',
+                    }}>
+                      Upgrade to Premium
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Development Notice */}
+              <View style={{
+                padding: theme.spacing.md,
+                backgroundColor: theme.colors.theme.surface,
+                borderRadius: theme.borderRadius.lg,
+                borderWidth: 1,
+                borderColor: theme.colors.theme.border,
+              }}>
+                <Text style={{
+                  fontSize: theme.typography.fontSize.bodySmall,
+                  color: theme.colors.theme.textSecondary,
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                  lineHeight: 18,
+                }}>
+                  Development Mode: This toggle allows testing premium features. In production, premium status will be managed through in-app purchases.
+                </Text>
+              </View>
+            </View>
+          </ExpandableCard>
 
           {/* Account Section */}
           <ExpandableCard
