@@ -25,6 +25,8 @@ import { apiService } from '../services/api';
 import { PreferencesService } from '../services/preferences';
 import { getRandomLoadingButtonText } from '../constants/copy';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { PremiumFeature } from '../components/PremiumFeature';
+import Constants from 'expo-constants';
 
 
 export default function RecipeResultScreen() {
@@ -33,6 +35,9 @@ export default function RecipeResultScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { isOnline } = useNetworkStatus();
+
+  // Check premium status
+  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
 
   const [recipeData, setRecipeData] = useState<RecipeGenerationResponse | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -523,12 +528,17 @@ export default function RecipeResultScreen() {
           <RecipeSection recipe={recipeData.recipe} />
 
           {/* Recipe Modification Section */}
-          <ExpandableCard
-            title="Modify Recipe"
-            subtitle="Tell me what you'd like to change"
-            icon="pencil"
-            defaultExpanded={false}
+          <PremiumFeature
+            featureName="Recipe Modification"
+            description="Customize any recipe to your exact preferences. Make it vegetarian, adjust spice levels, substitute ingredients, or modify cooking methods with AI-powered precision."
+            mode="overlay"
           >
+            <ExpandableCard
+              title="Modify Recipe"
+              subtitle="Tell me what you'd like to change"
+              icon="pencil"
+              defaultExpanded={false}
+            >
             <Text
               style={{
                 fontSize: theme.typography.fontSize.bodyMedium,
@@ -645,7 +655,8 @@ export default function RecipeResultScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
-          </ExpandableCard>
+            </ExpandableCard>
+          </PremiumFeature>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

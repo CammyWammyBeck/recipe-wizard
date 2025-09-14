@@ -12,10 +12,15 @@ import { router } from 'expo-router';
 import { CheckboxItem } from '../../components/CheckboxItem';
 import { HeaderComponent } from '../../components/HeaderComponent';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PremiumFeature } from '../../components/PremiumFeature';
+import Constants from 'expo-constants';
 
 export default function ShoppingListScreen() {
   const { theme, isDark } = useAppTheme();
   const { isOnline } = useNetworkStatus();
+
+  // Check premium status
+  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
 
   // Create Paper-compatible theme
   const paperTheme: MD3Theme = {
@@ -335,6 +340,36 @@ export default function ShoppingListScreen() {
           </Text>
         </View>
       </SafeAreaView>
+    );
+  }
+
+  // Show premium lock screen for non-premium users
+  if (!isPremium) {
+    return (
+      <PaperProvider theme={paperTheme}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
+          <HeaderComponent
+            title="Shopping List"
+            subtitle="Premium Feature"
+            rightContent={
+              <MaterialCommunityIcons
+                name="crown"
+                size={24}
+                color={theme.colors.wizard.primary}
+              />
+            }
+          />
+
+          <PremiumFeature
+            featureName="Smart Shopping Lists"
+            description="Automatically combine ingredients from multiple recipes, organize by store categories, and keep track of what you need to buy. Never forget ingredients again!"
+            mode="replace"
+            style={{ margin: theme.spacing.lg, flex: 1 }}
+          >
+            <View />
+          </PremiumFeature>
+        </SafeAreaView>
+      </PaperProvider>
     );
   }
 

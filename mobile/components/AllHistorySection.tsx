@@ -11,6 +11,8 @@ import { useRouter } from 'expo-router';
 import { ExpandableCard } from './ExpandableCard';
 import { apiService } from '../services/api';
 import { SavedRecipeData } from '../types/api';
+import { PremiumFeature } from './PremiumFeature';
+import Constants from 'expo-constants';
 
 interface AllHistorySectionProps {
   style?: ViewStyle;
@@ -19,6 +21,9 @@ interface AllHistorySectionProps {
 export function AllHistorySection({ style }: AllHistorySectionProps) {
   const { theme } = useAppTheme();
   const router = useRouter();
+
+  // Check premium status
+  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
 
   const [allRecipes, setAllRecipes] = useState<SavedRecipeData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -302,42 +307,84 @@ export function AllHistorySection({ style }: AllHistorySectionProps) {
         
         {/* Load More Button */}
         {hasMoreRecipes && (
-          <TouchableOpacity
-            onPress={handleLoadMore}
-            disabled={isLoadingMore}
-            style={{
-              backgroundColor: theme.colors.theme.backgroundSecondary,
-              borderRadius: theme.borderRadius.xl,
-              padding: theme.spacing.lg,
-              marginTop: theme.spacing.md,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isLoadingMore ? 0.7 : 1,
-            }}
-          >
-            <View style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center',
-              gap: theme.spacing.sm 
-            }}>
-              <MaterialCommunityIcons
-                name={isLoadingMore ? "loading" : "chevron-down"}
-                size={20}
-                color={theme.colors.wizard.primary}
-                style={isLoadingMore ? { transform: [{ rotate: '45deg' }] } : {}}
-              />
-              <Text
+          isPremium ? (
+            <TouchableOpacity
+              onPress={handleLoadMore}
+              disabled={isLoadingMore}
+              style={{
+                backgroundColor: theme.colors.theme.backgroundSecondary,
+                borderRadius: theme.borderRadius.xl,
+                padding: theme.spacing.lg,
+                marginTop: theme.spacing.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: isLoadingMore ? 0.7 : 1,
+              }}
+            >
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm
+              }}>
+                <MaterialCommunityIcons
+                  name={isLoadingMore ? "loading" : "chevron-down"}
+                  size={20}
+                  color={theme.colors.wizard.primary}
+                  style={isLoadingMore ? { transform: [{ rotate: '45deg' }] } : {}}
+                />
+                <Text
+                  style={{
+                    fontSize: theme.typography.fontSize.bodyLarge,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    color: theme.colors.wizard.primary,
+                    fontFamily: theme.typography.fontFamily.body,
+                  }}
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load More Recipes'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <PremiumFeature
+              featureName="Complete Recipe History"
+              description="Access your full recipe history and load more recipes from your cooking journey. Never lose track of your favorite dishes!"
+              mode="overlay"
+              style={{ marginTop: theme.spacing.md }}
+            >
+              <TouchableOpacity
+                disabled={true}
                 style={{
-                  fontSize: theme.typography.fontSize.bodyLarge,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  color: theme.colors.wizard.primary,
-                  fontFamily: theme.typography.fontFamily.body,
+                  backgroundColor: theme.colors.theme.backgroundSecondary,
+                  borderRadius: theme.borderRadius.xl,
+                  padding: theme.spacing.lg,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {isLoadingMore ? 'Loading...' : 'Load More Recipes'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.sm
+                }}>
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={20}
+                    color={theme.colors.wizard.primary}
+                  />
+                  <Text
+                    style={{
+                      fontSize: theme.typography.fontSize.bodyLarge,
+                      fontWeight: theme.typography.fontWeight.medium,
+                      color: theme.colors.wizard.primary,
+                      fontFamily: theme.typography.fontFamily.body,
+                    }}
+                  >
+                    Load More Recipes
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </PremiumFeature>
+          )
         )}
       </View>
     );

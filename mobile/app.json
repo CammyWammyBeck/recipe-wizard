@@ -38,7 +38,8 @@
       "router": {},
       "eas": {
         "projectId": "13d76684-3800-406a-a071-e2c02ca60824"
-      }
+      },
+      "isPremium": false
     }
   }
 }

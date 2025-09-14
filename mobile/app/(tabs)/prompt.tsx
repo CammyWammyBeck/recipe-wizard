@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, Keyboard
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, TextInput, useAppTheme, ExpandableCard, PillSlider, PillSliderOption } from '../../components';
+import { PremiumFeature } from '../../components/PremiumFeature';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
 import { RecipeIdeasResponse } from '../../types/api';
@@ -1039,55 +1040,60 @@ export default function PromptScreen() {
               </View>
             ) : (
               /* Generate Ideas Mode */
-              <View>
-                {/* Generate Ideas Prompt Input */}
-                <View style={{ marginBottom: theme.spacing.lg }}>
-                  <View
-                    style={{
-                      borderRadius: theme.borderRadius.xl,
-                      borderWidth: 2,
-                      borderColor: generateIdeasPrompt.length > 0 
-                        ? theme.colors.wizard.primary 
-                        : theme.colors.theme.border,
-                      backgroundColor: theme.colors.theme.surface,
-                      ...theme.shadows.surface,
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <TextInput
-                      placeholder={getRandomSuggestion()}
-                      value={generateIdeasPrompt}
-                      onChangeText={(text) => {
-                        setGenerateIdeasPrompt(text);
-                        // Reset error state when user starts editing
-                        if (isIdeasInErrorState) {
-                          setIsIdeasInErrorState(false);
-                          setGenerateIdeasButtonText('Generate Ideas');
-                        }
-                        // Update button text based on whether text has changed from last generation
-                        if (generatedIdeas.length > 0) {
-                          if (text !== lastGeneratedPrompt) {
-                            setGenerateIdeasButtonText('Generate Ideas');
-                          } else {
-                            setGenerateIdeasButtonText('Refresh Ideas');
-                          }
-                        }
-                      }}
+              <PremiumFeature
+                featureName="AI Recipe Ideas"
+                description="Get creative recipe suggestions based on your preferences and dietary needs. Perfect for discovering new dishes!"
+                mode="overlay"
+              >
+                <View>
+                  {/* Generate Ideas Prompt Input */}
+                  <View style={{ marginBottom: theme.spacing.lg }}>
+                    <View
                       style={{
-                        minHeight: 80,
-                        fontSize: theme.typography.fontSize.bodyLarge,
-                        textAlignVertical: 'top',
-                        paddingTop: theme.spacing.lg,
-                        paddingBottom: theme.spacing.lg,
-                        lineHeight: theme.typography.fontSize.bodyLarge * 1.4,
+                        borderRadius: theme.borderRadius.xl,
+                        borderWidth: 2,
+                        borderColor: generateIdeasPrompt.length > 0
+                          ? theme.colors.wizard.primary
+                          : theme.colors.theme.border,
+                        backgroundColor: theme.colors.theme.surface,
+                        ...theme.shadows.surface,
+                        position: 'relative',
+                        overflow: 'hidden',
                       }}
-                      containerStyle={{ marginBottom: 0 }}
-                    />
+                    >
+                      <TextInput
+                        placeholder={getRandomSuggestion()}
+                        value={generateIdeasPrompt}
+                        onChangeText={(text) => {
+                          setGenerateIdeasPrompt(text);
+                          // Reset error state when user starts editing
+                          if (isIdeasInErrorState) {
+                            setIsIdeasInErrorState(false);
+                            setGenerateIdeasButtonText('Generate Ideas');
+                          }
+                          // Update button text based on whether text has changed from last generation
+                          if (generatedIdeas.length > 0) {
+                            if (text !== lastGeneratedPrompt) {
+                              setGenerateIdeasButtonText('Generate Ideas');
+                            } else {
+                              setGenerateIdeasButtonText('Refresh Ideas');
+                            }
+                          }
+                        }}
+                        style={{
+                          minHeight: 80,
+                          fontSize: theme.typography.fontSize.bodyLarge,
+                          textAlignVertical: 'top',
+                          paddingTop: theme.spacing.lg,
+                          paddingBottom: theme.spacing.lg,
+                          lineHeight: theme.typography.fontSize.bodyLarge * 1.4,
+                        }}
+                        containerStyle={{ marginBottom: 0 }}
+                      />
+                    </View>
                   </View>
-                </View>
 
-                {/* Generate Ideas Button with 2-segment progress */}
+                  {/* Generate Ideas Button with 2-segment progress */}
                 <TouchableOpacity
                   onPress={handleGenerateIdeas}
                   disabled={(!generateIdeasPrompt.trim() && generateIdeasButtonText !== 'Refresh Ideas') || 
@@ -1255,7 +1261,8 @@ export default function PromptScreen() {
                     </View>
                   </View>
                 )}
-              </View>
+                </View>
+              </PremiumFeature>
             )}
           </View>
           </ScrollView>
