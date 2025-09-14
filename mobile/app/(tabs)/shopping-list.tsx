@@ -346,37 +346,34 @@ export default function ShoppingListScreen() {
   // Show premium lock screen for non-premium users
   if (!isPremium) {
     return (
-      <PaperProvider theme={paperTheme}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
-          <HeaderComponent
-            title="Shopping List"
-            subtitle="Premium Feature"
-            rightContent={
-              <MaterialCommunityIcons
-                name="crown"
-                size={24}
-                color={theme.colors.wizard.primary}
-              />
-            }
-          />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
+        <HeaderComponent
+          title="Shopping List"
+          subtitle="Premium Feature"
+          rightContent={
+            <MaterialCommunityIcons
+              name="crown"
+              size={24}
+              color={theme.colors.wizard.primary}
+            />
+          }
+        />
 
-          <PremiumFeature
-            featureName="Smart Shopping Lists"
-            description="Automatically combine ingredients from multiple recipes, organize by store categories, and keep track of what you need to buy. Never forget ingredients again!"
-            mode="replace"
-            style={{ margin: theme.spacing.lg, flex: 1 }}
-          >
-            <View />
-          </PremiumFeature>
-        </SafeAreaView>
-      </PaperProvider>
+        <PremiumFeature
+          featureName="Smart Shopping Lists"
+          description="Automatically combine ingredients from multiple recipes, organize by store categories, and keep track of what you need to buy. Never forget ingredients again!"
+          mode="replace"
+          style={{ margin: theme.spacing.lg, flex: 1 }}
+        >
+          <View />
+        </PremiumFeature>
+      </SafeAreaView>
     );
   }
 
   if (shoppingList.length === 0) {
     return (
-      <PaperProvider theme={paperTheme}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
           <View style={{
             flex: 1,
             justifyContent: 'center',
@@ -412,13 +409,11 @@ export default function ShoppingListScreen() {
             </Text>
           </View>
         </SafeAreaView>
-      </PaperProvider>
     );
   }
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
         <HeaderComponent
           title="Shopping List"
           subtitle={`${completedItems}/${totalItems} items completed`}
@@ -688,6 +683,5 @@ export default function ShoppingListScreen() {
           </Dialog>
         </Portal>
       </SafeAreaView>
-    </PaperProvider>
   );
 }
