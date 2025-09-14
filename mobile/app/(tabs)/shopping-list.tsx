@@ -1,25 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, RefreshControl, TouchableOpacity, Platform } from 'react-native';
-import { Text, Portal, Dialog, Button, Provider as PaperProvider } from 'react-native-paper';
+import { Text, Portal, Dialog, Button, Provider as PaperProvider, MD3Theme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { ShoppingListItem } from '../../types/api';
+import { ShoppingListItem, SavedRecipeData } from '../../types/api';
 import { apiService } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { CheckboxItem } from '../../components/CheckboxItem';
 import { HeaderComponent } from '../../components/HeaderComponent';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ShoppingListScreen() {
-  const { theme } = useAppTheme();
+  const { theme, isDark } = useAppTheme();
   const { isOnline } = useNetworkStatus();
+
+  // Create Paper-compatible theme
+  const paperTheme: MD3Theme = {
+    dark: isDark,
+    version: 3,
+    mode: 'adaptive',
+    colors: {
+      primary: theme.colors.wizard.primary,
+      onPrimary: '#ffffff',
+      primaryContainer: theme.colors.wizard.primary + '20',
+      onPrimaryContainer: theme.colors.wizard.primary,
+      secondary: theme.colors.wizard.accent,
+      onSecondary: '#ffffff',
+      secondaryContainer: theme.colors.wizard.accent + '20',
+      onSecondaryContainer: theme.colors.wizard.accent,
+      tertiary: theme.colors.wizard.accent,
+      onTertiary: '#ffffff',
+      tertiaryContainer: theme.colors.wizard.accent + '20',
+      onTertiaryContainer: theme.colors.wizard.accent,
+      error: theme.colors.status.error,
+      onError: '#ffffff',
+      errorContainer: theme.colors.status.error + '20',
+      onErrorContainer: theme.colors.status.error,
+      background: theme.colors.theme.background,
+      onBackground: theme.colors.theme.text,
+      surface: theme.colors.theme.surface,
+      onSurface: theme.colors.theme.text,
+      surfaceVariant: theme.colors.theme.backgroundSecondary,
+      onSurfaceVariant: theme.colors.theme.textSecondary,
+      outline: theme.colors.theme.border,
+      outlineVariant: theme.colors.theme.borderLight,
+      shadow: '#000000',
+      scrim: '#000000',
+      inverseSurface: isDark ? '#ffffff' : '#000000',
+      inverseOnSurface: isDark ? '#000000' : '#ffffff',
+      inversePrimary: theme.colors.wizard.primaryLight,
+      elevation: {
+        level0: 'transparent',
+        level1: theme.colors.theme.backgroundSecondary,
+        level2: theme.colors.theme.backgroundTertiary,
+        level3: theme.colors.theme.surface,
+        level4: theme.colors.theme.surface,
+        level5: theme.colors.theme.surface,
+      },
+      surfaceDisabled: theme.colors.theme.textDisabled + '12',
+      onSurfaceDisabled: theme.colors.theme.textDisabled,
+      backdrop: 'rgba(0, 0, 0, 0.5)',
+    } as any,
+  } as MD3Theme;
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [savedRecipes, setSavedRecipes] = useState<SavedRecipeData[]>([]);
 
   // Group items by category
   const itemsByCategory = shoppingList.reduce((acc, item) => {
@@ -42,6 +93,50 @@ export default function ShoppingListScreen() {
       newExpanded.add(itemId);
     }
     setExpandedItems(newExpanded);
+  };
+
+  const handleRecipePress = async (recipeId: string, recipeTitle: string) => {
+    try {
+      // First, try to find the recipe in saved recipes
+      const savedRecipe = savedRecipes.find(recipe => recipe.id === recipeId);
+
+      if (savedRecipe) {
+        // Navigate with full recipe data
+        router.push({
+          pathname: '/recipe-result',
+          params: {
+            recipeData: JSON.stringify(savedRecipe),
+            fromShoppingList: 'true'
+          }
+        });
+        return;
+      }
+
+      // If not in saved recipes, try to get from conversation history
+      const conversationHistory = await apiService.getConversationHistory(50); // Get more entries to find the recipe
+      const historyRecipe = conversationHistory.find(entry => entry.response.id === recipeId);
+
+      if (historyRecipe) {
+        // Navigate with full recipe data from history
+        router.push({
+          pathname: '/recipe-result',
+          params: {
+            recipeData: JSON.stringify(historyRecipe.response),
+            fromShoppingList: 'true'
+          }
+        });
+        return;
+      }
+
+      // If recipe not found in local data, show error
+      console.warn('Recipe not found in local data:', recipeId, recipeTitle);
+      // For now, just show alert - could implement a more user-friendly error
+      alert(`Sorry, the recipe "${recipeTitle}" could not be found. It may have been removed from your history.`);
+
+    } catch (error) {
+      console.error('Error navigating to recipe:', error);
+      alert(`Sorry, there was an error loading the recipe "${recipeTitle}".`);
+    }
   };
 
   const toggleItemChecked = async (itemId: string) => {
@@ -109,17 +204,30 @@ export default function ShoppingListScreen() {
       setLoading(true);
 
       if (isOnline) {
-        // Try to load from API
-        const response = await apiService.getShoppingList();
-        setShoppingList(response.items);
+        // Load both shopping list and saved recipes for navigation
+        const [shoppingResponse, savedRecipesData] = await Promise.all([
+          apiService.getShoppingList(),
+          apiService.getSavedRecipes().catch(() => [])
+        ]);
+
+        setShoppingList(shoppingResponse.items);
+        setSavedRecipes(savedRecipesData);
 
         // Cache the data for offline use
-        await AsyncStorage.setItem('cached_shopping_list', JSON.stringify(response.items));
+        await AsyncStorage.setItem('cached_shopping_list', JSON.stringify(shoppingResponse.items));
+        await AsyncStorage.setItem('cached_saved_recipes', JSON.stringify(savedRecipesData));
       } else {
         // Load from cache when offline
-        const cachedData = await AsyncStorage.getItem('cached_shopping_list');
-        if (cachedData) {
-          setShoppingList(JSON.parse(cachedData));
+        const [cachedShoppingList, cachedSavedRecipes] = await Promise.all([
+          AsyncStorage.getItem('cached_shopping_list'),
+          AsyncStorage.getItem('cached_saved_recipes')
+        ]);
+
+        if (cachedShoppingList) {
+          setShoppingList(JSON.parse(cachedShoppingList));
+        }
+        if (cachedSavedRecipes) {
+          setSavedRecipes(JSON.parse(cachedSavedRecipes));
         }
       }
     } catch (error) {
@@ -127,12 +235,19 @@ export default function ShoppingListScreen() {
 
       // Try to load from cache as fallback
       try {
-        const cachedData = await AsyncStorage.getItem('cached_shopping_list');
-        if (cachedData) {
-          setShoppingList(JSON.parse(cachedData));
+        const [cachedShoppingList, cachedSavedRecipes] = await Promise.all([
+          AsyncStorage.getItem('cached_shopping_list'),
+          AsyncStorage.getItem('cached_saved_recipes')
+        ]);
+
+        if (cachedShoppingList) {
+          setShoppingList(JSON.parse(cachedShoppingList));
+        }
+        if (cachedSavedRecipes) {
+          setSavedRecipes(JSON.parse(cachedSavedRecipes));
         }
       } catch (cacheError) {
-        console.error('Error loading cached shopping list:', cacheError);
+        console.error('Error loading cached data:', cacheError);
       }
     } finally {
       setLoading(false);
@@ -225,7 +340,7 @@ export default function ShoppingListScreen() {
 
   if (shoppingList.length === 0) {
     return (
-      <PaperProvider>
+      <PaperProvider theme={paperTheme}>
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
           <View style={{
             flex: 1,
@@ -267,7 +382,7 @@ export default function ShoppingListScreen() {
   }
 
   return (
-    <PaperProvider>
+    <PaperProvider theme={paperTheme}>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
         <HeaderComponent
           title="Shopping List"
@@ -412,7 +527,10 @@ export default function ShoppingListScreen() {
                             color: item.isChecked ? theme.colors.theme.textSecondary : theme.colors.theme.text,
                             textDecorationLine: item.isChecked ? 'line-through' : 'none',
                           }}>
-                            <Text style={{ fontWeight: '600' }}>
+                            <Text style={{
+                              fontWeight: '600',
+                              color: item.isChecked ? theme.colors.theme.textSecondary : theme.colors.theme.textSecondary,
+                            }}>
                               {item.consolidatedDisplay}
                             </Text>
                             {' '}
@@ -420,7 +538,7 @@ export default function ShoppingListScreen() {
                             {item.recipeBreakdown.length > 1 && (
                               <Text style={{
                                 fontSize: theme.typography.fontSize.bodySmall,
-                                color: theme.colors.theme.textTertiary,
+                                color: theme.colors.theme.textSecondary,
                                 fontWeight: '400',
                               }}>
                                 {' '}(from {item.recipeBreakdown.length} recipes)
@@ -482,12 +600,27 @@ export default function ShoppingListScreen() {
                               />
                               <Text style={{
                                 fontSize: theme.typography.fontSize.bodySmall,
-                                color: theme.colors.theme.textSecondary,
+                                color: theme.colors.theme.text,
                                 flex: 1,
                               }}>
-                                <Text style={{ fontWeight: '600' }}>{recipe.quantity}</Text>
+                                <Text style={{
+                                  fontWeight: '600',
+                                  color: theme.colors.theme.textSecondary,
+                                }}>{recipe.quantity}</Text>
                                 {' for '}
-                                <Text style={{ fontStyle: 'italic' }}>{recipe.recipeTitle}</Text>
+                                <TouchableOpacity
+                                  onPress={() => handleRecipePress(recipe.recipeId, recipe.recipeTitle)}
+                                  style={{
+                                    borderRadius: 4,
+                                    paddingHorizontal: 2,
+                                  }}
+                                >
+                                  <Text style={{
+                                    fontStyle: 'italic',
+                                    color: theme.colors.wizard.primary,
+                                    textDecorationLine: 'underline',
+                                  }}>{recipe.recipeTitle}</Text>
+                                </TouchableOpacity>
                               </Text>
                             </View>
                           ))}

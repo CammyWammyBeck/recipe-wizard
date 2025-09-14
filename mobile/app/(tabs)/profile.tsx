@@ -29,6 +29,15 @@ import {
 
 const STORAGE_KEY = '@recipe_wizard_preferences';
 
+// Simple debounce utility
+function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
+
 // Common dietary restrictions and allergens
 const COMMON_DIETARY_RESTRICTIONS = [
   'vegetarian', 'vegan', 'pescatarian', 'gluten-free', 'dairy-free', 
@@ -40,7 +49,7 @@ const COMMON_ALLERGENS = [
 ];
 
 export default function ProfileScreen() {
-  const { theme } = useAppTheme();
+  const { theme, themeMode, setThemeMode, isDark } = useAppTheme();
   const router = useRouter();
   const { logout, user } = useAuth();
   
@@ -55,8 +64,9 @@ export default function ProfileScreen() {
     createdAt: new Date().toISOString(),
   });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Load preferences from storage
   useEffect(() => {
@@ -81,24 +91,30 @@ export default function ProfileScreen() {
     }
   };
 
-  const savePreferences = async () => {
-    setSaving(true);
+  // Auto-save preferences with debouncing
+  const autoSavePreferences = useCallback(async (preferencesToSave: UserPreferences) => {
     try {
+      setAutoSaving(true);
       const updatedPreferences = {
-        ...preferences,
+        ...preferencesToSave,
         updatedAt: new Date().toISOString(),
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPreferences));
-      setPreferences(updatedPreferences);
-      
-      Alert.alert('Success', 'Preferences saved successfully!', [{ text: 'OK' }]);
+      setLastSaved(new Date());
+      console.log('✅ Preferences auto-saved successfully');
     } catch (error) {
-      console.error('Failed to save preferences:', error);
-      Alert.alert('Error', 'Failed to save preferences. Please try again.');
+      console.error('❌ Failed to auto-save preferences:', error);
+      // Don't show alert for auto-save failures - just log
     } finally {
-      setSaving(false);
+      setAutoSaving(false);
     }
-  };
+  }, []);
+
+  // Debounced auto-save to avoid too many saves
+  const debouncedAutoSave = useCallback(
+    debounce((prefs: UserPreferences) => autoSavePreferences(prefs), 1000),
+    [autoSavePreferences]
+  );
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -127,33 +143,45 @@ export default function ProfileScreen() {
   };
 
   const updatePreference = useCallback(<K extends keyof UserPreferences>(
-    key: K, 
+    key: K,
     value: UserPreferences[K]
   ) => {
-    setPreferences(prev => ({ ...prev, [key]: value }));
-  }, []);
+    setPreferences(prev => {
+      const updated = { ...prev, [key]: value };
+      debouncedAutoSave(updated);
+      return updated;
+    });
+  }, [debouncedAutoSave]);
 
   const toggleArrayItem = useCallback((
     key: keyof Pick<UserPreferences, 'dietaryRestrictions' | 'allergens' | 'dislikes' | 'groceryCategories'>,
     item: string
   ) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: prev[key].includes(item) 
-        ? prev[key].filter(i => i !== item)
-        : [...prev[key], item]
-    }));
-  }, []);
+    setPreferences(prev => {
+      const updated = {
+        ...prev,
+        [key]: prev[key].includes(item)
+          ? prev[key].filter(i => i !== item)
+          : [...prev[key], item]
+      };
+      debouncedAutoSave(updated);
+      return updated;
+    });
+  }, [debouncedAutoSave]);
 
   const addCustomItem = (
     key: keyof Pick<UserPreferences, 'dietaryRestrictions' | 'allergens' | 'dislikes' | 'groceryCategories'>,
     item: string
   ) => {
     if (item.trim() && !preferences[key].includes(item.trim())) {
-      setPreferences(prev => ({
-        ...prev,
-        [key]: [...prev[key], item.trim()]
-      }));
+      setPreferences(prev => {
+        const updated = {
+          ...prev,
+          [key]: [...prev[key], item.trim()]
+        };
+        debouncedAutoSave(updated);
+        return updated;
+      });
     }
   };
 
@@ -161,18 +189,26 @@ export default function ProfileScreen() {
     key: keyof Pick<UserPreferences, 'dietaryRestrictions' | 'allergens' | 'dislikes' | 'groceryCategories'>,
     item: string
   ) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: prev[key].filter(i => i !== item)
-    }));
+    setPreferences(prev => {
+      const updated = {
+        ...prev,
+        [key]: prev[key].filter(i => i !== item)
+      };
+      debouncedAutoSave(updated);
+      return updated;
+    });
   };
 
   const reorderCategories = useCallback((newOrder: string[]) => {
-    setPreferences(prev => ({
-      ...prev,
-      groceryCategories: newOrder
-    }));
-  }, []);
+    setPreferences(prev => {
+      const updated = {
+        ...prev,
+        groceryCategories: newOrder
+      };
+      debouncedAutoSave(updated);
+      return updated;
+    });
+  }, [debouncedAutoSave]);
 
   const onCategoriesReordered = useCallback((fromIndex: number, toIndex: number) => {
     const newOrder = [...preferences.groceryCategories];
@@ -369,6 +405,155 @@ export default function ProfileScreen() {
                 }}>
                   Imperial (lbs, cups, °F)
                 </Text>
+              </TouchableOpacity>
+            </View>
+          </ExpandableCard>
+
+          {/* Theme Preference */}
+          <ExpandableCard
+            title="App Theme"
+            subtitle={
+              themeMode === 'system'
+                ? `System (currently ${isDark ? 'dark' : 'light'})`
+                : themeMode.charAt(0).toUpperCase() + themeMode.slice(1)
+            }
+            icon="palette"
+            defaultExpanded={false}
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              {/* Light Theme Option */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: theme.spacing.md,
+                  backgroundColor: themeMode === 'light'
+                    ? theme.colors.wizard.primary + '20'
+                    : theme.colors.theme.surface,
+                  borderRadius: theme.borderRadius.lg,
+                  borderWidth: themeMode === 'light' ? 2 : 1,
+                  borderColor: themeMode === 'light'
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.border,
+                }}
+                onPress={() => setThemeMode('light')}
+              >
+                <MaterialCommunityIcons
+                  name="weather-sunny"
+                  size={24}
+                  color={themeMode === 'light'
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.textSecondary
+                  }
+                  style={{ marginRight: theme.spacing.md }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodyLarge,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    color: themeMode === 'light'
+                      ? theme.colors.wizard.primary
+                      : theme.colors.theme.text,
+                  }}>
+                    Light
+                  </Text>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodySmall,
+                    color: theme.colors.theme.textSecondary,
+                  }}>
+                    Bright colors and white backgrounds
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Dark Theme Option */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: theme.spacing.md,
+                  backgroundColor: themeMode === 'dark'
+                    ? theme.colors.wizard.primary + '20'
+                    : theme.colors.theme.surface,
+                  borderRadius: theme.borderRadius.lg,
+                  borderWidth: themeMode === 'dark' ? 2 : 1,
+                  borderColor: themeMode === 'dark'
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.border,
+                }}
+                onPress={() => setThemeMode('dark')}
+              >
+                <MaterialCommunityIcons
+                  name="weather-night"
+                  size={24}
+                  color={themeMode === 'dark'
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.textSecondary
+                  }
+                  style={{ marginRight: theme.spacing.md }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodyLarge,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    color: themeMode === 'dark'
+                      ? theme.colors.wizard.primary
+                      : theme.colors.theme.text,
+                  }}>
+                    Dark
+                  </Text>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodySmall,
+                    color: theme.colors.theme.textSecondary,
+                  }}>
+                    Easy on the eyes with dark colors
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* System Theme Option */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: theme.spacing.md,
+                  backgroundColor: themeMode === 'system'
+                    ? theme.colors.wizard.primary + '20'
+                    : theme.colors.theme.surface,
+                  borderRadius: theme.borderRadius.lg,
+                  borderWidth: themeMode === 'system' ? 2 : 1,
+                  borderColor: themeMode === 'system'
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.border,
+                }}
+                onPress={() => setThemeMode('system')}
+              >
+                <MaterialCommunityIcons
+                  name="theme-light-dark"
+                  size={24}
+                  color={themeMode === 'system'
+                    ? theme.colors.wizard.primary
+                    : theme.colors.theme.textSecondary
+                  }
+                  style={{ marginRight: theme.spacing.md }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodyLarge,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    color: themeMode === 'system'
+                      ? theme.colors.wizard.primary
+                      : theme.colors.theme.text,
+                  }}>
+                    System
+                  </Text>
+                  <Text style={{
+                    fontSize: theme.typography.fontSize.bodySmall,
+                    color: theme.colors.theme.textSecondary,
+                  }}>
+                    Follow your device's theme setting
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           </ExpandableCard>
@@ -691,17 +876,55 @@ export default function ProfileScreen() {
             </View>
           </ExpandableCard>
 
-          {/* Save Button */}
-          <View style={{ marginTop: theme.spacing.xl }}>
-            <Button
-              onPress={savePreferences}
-              variant="primary"
-              disabled={saving}
-              loading={saving}
-              leftIcon="content-save"
-            >
-              {saving ? "Saving..." : "Save Preferences"}
-            </Button>
+          {/* Auto-save Status */}
+          <View style={{
+            marginTop: theme.spacing.lg,
+            alignItems: 'center',
+            paddingVertical: theme.spacing.sm,
+          }}>
+            {autoSaving ? (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                opacity: 0.7,
+              }}>
+                <MaterialCommunityIcons
+                  name="loading"
+                  size={16}
+                  color={theme.colors.wizard.primary}
+                  style={{
+                    marginRight: theme.spacing.sm,
+                    transform: [{ rotate: autoSaving ? '360deg' : '0deg' }]
+                  }}
+                />
+                <Text style={{
+                  fontSize: theme.typography.fontSize.bodySmall,
+                  color: theme.colors.theme.textSecondary,
+                  fontWeight: theme.typography.fontWeight.medium,
+                }}>
+                  Saving preferences...
+                </Text>
+              </View>
+            ) : lastSaved && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                opacity: 0.6,
+              }}>
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={16}
+                  color={theme.colors.status.success}
+                  style={{ marginRight: theme.spacing.sm }}
+                />
+                <Text style={{
+                  fontSize: theme.typography.fontSize.bodySmall,
+                  color: theme.colors.theme.textSecondary,
+                }}>
+                  Preferences saved automatically
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Account Section */}

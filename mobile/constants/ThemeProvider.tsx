@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PreferencesService } from '../services/preferences';
 import { 
@@ -44,17 +44,29 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
   const [isLoading, setIsLoading] = useState(true);
+  const [forcedSystemScheme, setForcedSystemScheme] = useState<'light' | 'dark' | null>(null);
   
   // Determine the effective theme based on mode and system preference
-  const getEffectiveTheme = (mode: ThemeMode, systemScheme: 'light' | 'dark' | null | undefined): 'light' | 'dark' => {
+  const getEffectiveTheme = (mode: ThemeMode, systemScheme: 'light' | 'dark' | null | undefined, forced: 'light' | 'dark' | null): 'light' | 'dark' => {
     if (mode === 'system') {
-      return systemScheme || 'dark'; // Default to dark if system scheme is null/undefined
+      // Use forced scheme if available (for Expo Go workaround), otherwise use detected system scheme
+      return forced || systemScheme || 'dark'; // Default to dark if system scheme is null/undefined
     }
     return mode;
   };
-  
-  const effectiveTheme = getEffectiveTheme(themeMode, systemColorScheme);
+
+  const effectiveTheme = getEffectiveTheme(themeMode, systemColorScheme, forcedSystemScheme);
   const isDark = effectiveTheme === 'dark';
+
+  // Debug logging for theme changes
+  useEffect(() => {
+    console.log('🎨 Theme Debug:', {
+      themeMode,
+      systemColorScheme,
+      effectiveTheme,
+      isDark
+    });
+  }, [themeMode, systemColorScheme, effectiveTheme, isDark]);
   
   // Build the theme object with the correct colors
   const theme = {
@@ -94,6 +106,27 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     
     loadThemePreference();
   }, []);
+
+  // Listen for system appearance changes as a fallback for Expo Go issues
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      console.log('🎨 System appearance changed via Appearance API:', colorScheme);
+
+      // Force update the system scheme when Appearance API detects changes
+      // This helps with Expo Go where useColorScheme() might not update immediately
+      if (colorScheme && colorScheme !== systemColorScheme) {
+        console.log('🔄 Forcing theme update due to Appearance API change');
+        setForcedSystemScheme(colorScheme);
+
+        // Clear the forced scheme after a short delay to let useColorScheme catch up
+        setTimeout(() => {
+          setForcedSystemScheme(null);
+        }, 1000);
+      }
+    });
+
+    return () => subscription?.remove();
+  }, [systemColorScheme]);
   
   // Save theme preference when it changes
   const setThemeMode = async (mode: ThemeMode) => {

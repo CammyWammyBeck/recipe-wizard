@@ -190,13 +190,21 @@ class APIService {
    */
   async getRecipe(recipeId: string): Promise<RecipeGenerationResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/recipes/${recipeId}`);
-      
+      console.log('🔍 Fetching recipe by ID:', recipeId);
+
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/${recipeId}`, {
+        method: 'GET',
+      });
+
+      console.log('📡 Get recipe response status:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('✅ Recipe fetched successfully:', data.id || 'no-id');
       return data;
     } catch (error) {
       console.error('Error fetching recipe:', error);

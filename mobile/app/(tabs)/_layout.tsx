@@ -1,20 +1,27 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useAppTheme } from '../../constants/ThemeProvider';
 
 export default function TabLayout() {
-  const theme = useTheme();
+  const { theme, isDark } = useAppTheme();
 
   return (
     <SafeAreaProvider>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarActiveTintColor: theme.colors.wizard.primary,
+          tabBarInactiveTintColor: theme.colors.theme.textSecondary,
           tabBarStyle: {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.outline,
+            backgroundColor: theme.colors.theme.surface,
+            borderTopColor: theme.colors.theme.border,
+            borderTopWidth: 1,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '500',
           },
           headerShown: false,
         }}>

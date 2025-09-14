@@ -16,13 +16,16 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 - **Authentication**: Full user registration and login system
 
 ### Advanced Features ✅ **IMPLEMENTED**
+- **Tab Navigation**: Intuitive bottom tab bar with four core sections
+- **Shopping List Management**: Dedicated tab with drag-to-reorder and smart categorization
 - **Profile Management**: Complete user settings and preferences
 - **Measurement Units**: Metric/Imperial conversion support
 - **Dietary Restrictions**: Vegetarian, vegan, gluten-free, allergen management
 - **Recipe Customization**: Default servings, difficulty preferences
-- **Grocery Categories**: Customizable ingredient organization
+- **Grocery Categories**: Customizable ingredient organization with drag-and-drop
 - **Dark/Light Theme**: System-aware theme with manual toggle
 - **Offline Support**: Local storage for preferences and saved recipes
+- **Real-time Sync**: Authentication context with persistent login state
 
 ## 🛠 Tech Stack
 
@@ -41,11 +44,12 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 - **PostgreSQL** - Robust relational database with migrations
 - **SQLAlchemy** - Python SQL toolkit and ORM
 - **Alembic** - Database migration tool (migrations implemented)
-- **OpenAI API** - LLM integration for recipe generation
-- **JWT** - Secure authentication system
+- **OpenAI API** - GPT-4 integration for intelligent recipe generation
+- **JWT** - Secure authentication system with token refresh
 - **Pydantic** - Data validation and serialization
 - **Rate Limiting** - Redis-based request throttling
 - **CORS** - Configured for mobile app integration
+- **Health Monitoring** - Comprehensive health check endpoints
 
 ## 🚀 Quick Start
 
@@ -54,8 +58,9 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 - **Node.js** (v18 or higher)
 - **Python** (v3.8 or higher)
 - **Expo CLI** (`npm install -g @expo/cli`)
-- **PostgreSQL** (for backend)
-- **Ollama** (for local LLM)
+- **PostgreSQL** (for backend database)
+- **Redis** (for rate limiting - optional for development)
+- **OpenAI API Key** (for GPT-4 recipe generation)
 
 ### Setup Instructions
 
@@ -75,37 +80,61 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 3. **Setup Backend** (Required for full functionality)
    ```bash
    cd backend
-   
+
    # Create virtual environment
    python -m venv venv
    source venv/bin/activate  # Linux/Mac
    # venv\Scripts\activate   # Windows
-   
+
    # Install dependencies
    pip install -r requirements.txt
-   
+
    # Setup environment variables
    cp .env.example .env
-   # Edit .env with your PostgreSQL and OpenAI API configuration
-   
+   # Edit .env with your configuration (see below)
+
+   # Setup database (PostgreSQL must be running)
+   # Create database: createdb recipewizard
+
    # Run database migrations
    alembic upgrade head
-   
-   # Start the server
-   uvicorn app.main:app --reload
+
+   # Start the development server
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-4. **Configure Environment** (Required)
-   ```bash
-   # Backend .env file
+4. **Configure Environment Variables** (Required)
+
+   **Backend (.env file):**
+   ```env
+   # Database Configuration
    DATABASE_URL=postgresql://user:password@localhost:5432/recipewizard
+
+   # Security
    SECRET_KEY=your-secret-key-here
-   OPENAI_API_KEY=your-openai-api-key  # For LLM functionality
    ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+   # OpenAI Integration (REQUIRED)
+   OPENAI_API_KEY=your-openai-api-key-here
+   OPENAI_MODEL=gpt-4
+   OPENAI_MAX_TOKENS=2000
+
+   # Optional: Rate Limiting
+   REDIS_URL=redis://localhost:6379
+
+   # Development
    DEBUG=True
-   
-   # Mobile app environment
+   API_HOST=0.0.0.0
+   API_PORT=8000
+   ```
+
+   **Mobile App Environment:**
+   ```bash
+   # Set in your shell or .bashrc/.zshrc
    export EXPO_PUBLIC_API_BASE_URL="http://localhost:8000"
+
+   # For physical device testing, use your computer's IP:
+   # export EXPO_PUBLIC_API_BASE_URL="http://192.168.1.xxx:8000"
    ```
 
 ## 📱 Development
@@ -151,10 +180,14 @@ RecipeWizard/
 ├── mobile/                    # React Native Expo app ✅ COMPLETED
 │   ├── app/                  # Expo Router pages (complete user flow)
 │   │   ├── index.tsx         # Welcome screen
-│   │   ├── prompt.tsx        # Recipe input screen
 │   │   ├── recipe-result.tsx # Recipe display screen
-│   │   ├── history.tsx       # Recipe history with saved favorites ✅ NEW
-│   │   ├── profile.tsx       # User settings & preferences ✅ NEW
+│   │   ├── _layout.tsx       # Root navigation layout
+│   │   ├── (tabs)/           # Tab navigation structure ✅ NEW
+│   │   │   ├── _layout.tsx   # Tab bar configuration
+│   │   │   ├── prompt.tsx    # Recipe input screen (tab)
+│   │   │   ├── history.tsx   # Recipe history with saved favorites
+│   │   │   ├── shopping-list.tsx # Dedicated shopping list management ✅ NEW
+│   │   │   └── profile.tsx   # User settings & preferences
 │   │   └── auth/             # Authentication screens
 │   │       ├── signin.tsx    # User sign-in
 │   │       └── signup.tsx    # User registration
@@ -219,58 +252,73 @@ Design mockups are available in the `design/examples/` folder.
 
 1. **Welcome Screen**: Elegant introduction with magical visual elements
 2. **Authentication**: Seamless sign-up/sign-in with user account creation
-3. **Recipe Input**: Natural language text input with AI-powered suggestions  
-4. **Generation**: Real-time recipe and grocery list creation via LLM
+3. **Tab Navigation**: Four main tabs for core functionality:
+   - **Prompt**: Natural language recipe input with AI-powered suggestions
+   - **History**: Complete recipe history with saved favorites management
+   - **Shopping List**: Dedicated shopping list with drag-to-reorder and categories
+   - **Profile**: Comprehensive settings for dietary preferences and customization
+4. **Recipe Generation**: Real-time recipe and grocery list creation via GPT-4
 5. **Results**: Organized grocery list with checkboxes + detailed cooking instructions
-6. **Saving**: One-tap saving to personal recipe collection
-7. **History**: Complete recipe history with saved favorites section
-8. **Profile**: Comprehensive settings for dietary preferences and customization
+6. **Saving**: One-tap saving to personal recipe collection with instant sync
 
 ## 🚧 Development Status
 
 **✅ Mobile App - FULLY COMPLETED:**
 - [x] Complete theme system with light/dark mode and system detection
-- [x] Comprehensive component library (12+ reusable components)
-- [x] Complete navigation flow (Welcome → Auth → Prompt → Recipe Result → History → Profile)
+- [x] Comprehensive component library (15+ reusable components)
+- [x] Modern tab navigation with 4 core sections (Prompt, History, Shopping List, Profile)
 - [x] Recipe result screen with expandable grocery lists & instructions
 - [x] Recipe history screen with saved favorites management
+- [x] Dedicated shopping list tab with drag-to-reorder functionality
 - [x] Comprehensive profile/settings screen with user preferences
-- [x] Authentication system with user context management
+- [x] Authentication system with persistent context management
 - [x] Performance optimization and comprehensive error handling
 - [x] Complete API service layer with all endpoints
 - [x] Full TypeScript type system for all data structures
 - [x] Local storage integration for preferences and offline support
+- [x] Advanced ingredient categorization and organization
+- [x] Real-time shopping list state management
 
 **✅ Backend - FULLY OPERATIONAL:**
-- [x] Complete FastAPI project structure with error handling
-- [x] LLM integration with OpenAI API (switchable to Ollama)
-- [x] Full database schema and models with migrations
-- [x] Authentication endpoints with JWT token management
-- [x] Recipe generation API endpoints with structured responses
+- [x] Complete FastAPI project structure with comprehensive error handling
+- [x] OpenAI GPT-4 integration for intelligent recipe generation
+- [x] Full database schema and models with Alembic migrations
+- [x] Authentication endpoints with JWT token management and refresh
+- [x] Recipe generation API endpoints with structured JSON responses
 - [x] User management and preferences endpoints
-- [x] Rate limiting and CORS configuration
+- [x] Shopping list API endpoints with category management
+- [x] Rate limiting with Redis and CORS configuration
 - [x] Health check and status monitoring endpoints
-- [x] Comprehensive error handling and logging
+- [x] Comprehensive error handling, logging, and security measures
+- [x] Production-ready deployment configuration for Heroku
 
 **✅ Recently Completed Features:**
-- [x] Complete recipe history with saved favorites
+- [x] Modern tab navigation architecture replacing stack navigation
+- [x] Dedicated shopping list tab with advanced management features
+- [x] Drag-and-drop ingredient reordering with smooth animations
+- [x] Enhanced recipe history with improved saved favorites section
 - [x] Comprehensive user profile and preferences management
-- [x] Dietary restrictions and allergen management
-- [x] Measurement unit preferences (metric/imperial)
-- [x] Customizable grocery categories
-- [x] Additional preferences text input for AI personalization
-- [x] Recipe saving and unsaving functionality
-- [x] Authentication context with persistent login state
+- [x] Advanced dietary restrictions and allergen management
+- [x] Measurement unit preferences (metric/imperial) with real-time conversion
+- [x] Customizable grocery categories with drag-to-reorder
+- [x] AI personalization with additional preferences text input
+- [x] Recipe saving and unsaving with instant visual feedback
+- [x] Authentication context with persistent login state and auto-refresh
+- [x] OpenAI GPT-4 integration replacing local LLM setup
 
 **🔄 Optional Future Enhancements:**
-- [ ] Push notifications for meal planning
-- [ ] Recipe sharing and social features
-- [ ] Advanced meal planning calendar
-- [ ] Nutrition information integration
-- [ ] Recipe scaling and ingredient substitution suggestions
-- [ ] Integration with grocery delivery services
-- [ ] Voice input for recipe prompts
-- [ ] Recipe photo capture and analysis
+- [ ] Push notifications for meal planning and reminders
+- [ ] Recipe sharing and social features with friends
+- [ ] Advanced meal planning calendar with weekly/monthly views
+- [ ] Nutrition information integration with calorie tracking
+- [ ] Smart recipe scaling and ingredient substitution suggestions
+- [ ] Integration with grocery delivery services (Instacart, etc.)
+- [ ] Voice input for hands-free recipe prompts
+- [ ] Recipe photo capture and AI-powered analysis
+- [ ] Barcode scanning for pantry inventory management
+- [ ] Smart shopping list optimization by store layout
+- [ ] Recipe recommendations based on available ingredients
+- [ ] Export recipes to popular cooking apps and platforms
 
 ## 🧪 API Endpoints ✅ **IMPLEMENTED IN SERVICE LAYER**
 
@@ -303,8 +351,9 @@ SECRET_KEY=your-secret-key-here
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # LLM Integration
-OLLAMA_BASE_URL=http://localhost:11434
-DEFAULT_MODEL=llama2
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_MODEL=gpt-4
+OPENAI_MAX_TOKENS=2000
 
 # API Configuration
 API_HOST=0.0.0.0
@@ -345,7 +394,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Expo** for the excellent React Native development platform
 - **FastAPI** for the modern Python web framework
-- **Ollama** for local LLM integration
+- **OpenAI** for GPT-4 recipe generation
 - **Tailwind CSS** for the utility-first CSS framework
 - **Material Design** for the component system
 
