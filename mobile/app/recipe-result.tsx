@@ -519,9 +519,9 @@ export default function RecipeResultScreen() {
             ingredients={ingredients}
             onIngredientToggle={handleIngredientToggle}
             categoryOrder={categoryOrder}
-            onAddToShoppingList={handleAddToShoppingList}
-            addToShoppingListLoading={isAddingToShoppingList}
-            addToShoppingListText={addToShoppingListText}
+            onAddToShoppingList={isPremium ? handleAddToShoppingList : undefined}
+            addToShoppingListLoading={isPremium ? isAddingToShoppingList : false}
+            addToShoppingListText={isPremium ? addToShoppingListText : undefined}
           />
 
           {/* Recipe Section */}
@@ -531,7 +531,7 @@ export default function RecipeResultScreen() {
           <PremiumFeature
             featureName="Recipe Modification"
             description="Customize any recipe to your exact preferences. Make it vegetarian, adjust spice levels, substitute ingredients, or modify cooking methods with AI-powered precision."
-            mode="overlay"
+            size="medium"
           >
             <ExpandableCard
               title="Modify Recipe"

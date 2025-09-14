@@ -1043,7 +1043,7 @@ export default function PromptScreen() {
               <PremiumFeature
                 featureName="AI Recipe Ideas"
                 description="Get creative recipe suggestions based on your preferences and dietary needs. Perfect for discovering new dishes!"
-                mode="overlay"
+                size="medium"
               >
                 <View>
                   {/* Generate Ideas Prompt Input */}

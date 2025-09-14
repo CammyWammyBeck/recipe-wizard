@@ -362,7 +362,7 @@ export default function ShoppingListScreen() {
         <PremiumFeature
           featureName="Smart Shopping Lists"
           description="Automatically combine ingredients from multiple recipes, organize by store categories, and keep track of what you need to buy. Never forget ingredients again!"
-          mode="replace"
+          size="large"
           style={{ margin: theme.spacing.lg, flex: 1 }}
         >
           <View />

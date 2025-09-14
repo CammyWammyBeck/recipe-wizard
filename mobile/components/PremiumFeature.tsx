@@ -3,11 +3,10 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ViewStyle,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Portal, Modal } from 'react-native-paper';
 import Constants from 'expo-constants';
 import { useAppTheme } from '../constants/ThemeProvider';
 import { Button } from './Button';
@@ -17,7 +16,7 @@ interface PremiumFeatureProps {
   featureName: string;
   description?: string;
   style?: ViewStyle;
-  mode?: 'overlay' | 'replace';
+  size?: 'small' | 'medium' | 'large';
 }
 
 interface UpgradeModalProps {
@@ -36,18 +35,31 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
   const { theme } = useAppTheme();
 
   return (
-    <Portal>
-      <Modal
-        visible={visible}
-        onDismiss={onDismiss}
-        contentContainerStyle={{
-          backgroundColor: theme.colors.theme.surface,
-          margin: 20,
-          borderRadius: theme.borderRadius.xl,
-          padding: theme.spacing['2xl'],
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onDismiss}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
           alignItems: 'center',
+          padding: 20,
         }}
       >
+        <View
+          style={{
+            backgroundColor: theme.colors.theme.surface,
+            borderRadius: theme.borderRadius.xl,
+            padding: theme.spacing['2xl'],
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: 400,
+          }}
+        >
         <View style={{ alignItems: 'center', marginBottom: theme.spacing.xl }}>
           <View
             style={{
@@ -133,8 +145,9 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
         >
           Premium: $4.99/month • Cancel anytime
         </Text>
-      </Modal>
-    </Portal>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -143,7 +156,7 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   featureName,
   description,
   style,
-  mode = 'overlay',
+  size = 'medium',
 }) => {
   const { theme } = useAppTheme();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -151,170 +164,67 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   // Check premium status from environment variable
   const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
 
+  // Size configurations for replace mode
+  const sizeConfig = {
+    small: {
+      titleSize: theme.typography.fontSize.titleMedium,
+      showDescription: false,
+      showBadge: true,
+      badgePosition: 'floating' as const,
+    },
+    medium: {
+      titleSize: theme.typography.fontSize.titleMedium,
+      descriptionSize: theme.typography.fontSize.bodyMedium,
+      showDescription: true,
+      showBadge: true,
+      badgePosition: 'floating' as const,
+    },
+    large: {
+      titleSize: theme.typography.fontSize.titleLarge,
+      descriptionSize: theme.typography.fontSize.bodyLarge,
+      showDescription: true,
+      showBadge: true,
+      badgePosition: 'centered' as const,
+    },
+  };
+
+  const config = sizeConfig[size];
+
   // If user has premium, just render children normally
   if (isPremium) {
     return <>{children}</>;
   }
 
-  // Handle different modes for non-premium users
-  if (mode === 'replace') {
-    return (
-      <>
-        <TouchableOpacity
-          style={[
-            {
-              flex: 1,
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: theme.colors.theme.backgroundSecondary,
-              borderRadius: theme.borderRadius.lg,
-              borderWidth: 2,
-              borderColor: theme.colors.wizard.primary + '30',
-              borderStyle: 'dashed',
-              padding: theme.spacing['2xl'],
-              minHeight: 200,
-            },
-            style,
-          ]}
-          onPress={() => setShowUpgradeModal(true)}
-          activeOpacity={0.7}
-        >
-          <View
-            style={{
-              alignItems: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                backgroundColor: theme.colors.wizard.primary + '20',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: theme.spacing.lg,
-              }}
-            >
-              <MaterialCommunityIcons
-                name="lock"
-                size={28}
-                color={theme.colors.wizard.primary}
-              />
-            </View>
-
-            <Text
-              style={{
-                fontSize: theme.typography.fontSize.titleMedium,
-                fontWeight: theme.typography.fontWeight.semibold,
-                color: theme.colors.theme.text,
-                textAlign: 'center',
-                marginBottom: theme.spacing.sm,
-              }}
-            >
-              {featureName}
-            </Text>
-
-            <View
-              style={{
-                backgroundColor: theme.colors.wizard.primary + '20',
-                paddingHorizontal: theme.spacing.md,
-                paddingVertical: theme.spacing.xs,
-                borderRadius: theme.borderRadius.lg,
-                marginBottom: theme.spacing.md,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: theme.typography.fontSize.bodySmall,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  color: theme.colors.wizard.primary,
-                  textAlign: 'center',
-                }}
-              >
-                Premium Only Feature
-              </Text>
-            </View>
-
-            <Text
-              style={{
-                fontSize: theme.typography.fontSize.bodyMedium,
-                color: theme.colors.theme.textSecondary,
-                textAlign: 'center',
-                lineHeight: 20,
-                marginBottom: theme.spacing.lg,
-              }}
-            >
-              {description || `Unlock ${featureName} with Premium subscription`}
-            </Text>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-            >
-              <MaterialCommunityIcons
-                name="crown"
-                size={16}
-                color={theme.colors.wizard.accent}
-                style={{ marginRight: theme.spacing.xs }}
-              />
-              <Text
-                style={{
-                  fontSize: theme.typography.fontSize.bodySmall,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  color: theme.colors.wizard.accent,
-                  textAlign: 'center',
-                }}
-              >
-                Tap to Upgrade
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <UpgradeModal
-          visible={showUpgradeModal}
-          onDismiss={() => setShowUpgradeModal(false)}
-          featureName={featureName}
-          description={description}
-        />
-      </>
-    );
-  }
-
-  // Default overlay mode
+  // Replace mode - show premium feature placeholder
   return (
     <>
-      <View style={[{ position: 'relative' }, style]}>
-        {/* Render children with reduced opacity */}
-        <View style={{ opacity: 0.3 }}>{children}</View>
-
-        {/* Premium overlay */}
-        <TouchableOpacity
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: theme.colors.theme.background + 'E0',
-            borderRadius: theme.borderRadius.lg,
-            borderWidth: 2,
-            borderColor: theme.colors.wizard.primary + '40',
-            borderStyle: 'dashed',
+      <TouchableOpacity
+        style={[
+          {
+            flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-          }}
-          onPress={() => setShowUpgradeModal(true)}
-          activeOpacity={0.8}
-        >
-          <View style={{ alignItems: 'center' }}>
-            {/* Premium Only Badge */}
+            backgroundColor: theme.colors.theme.backgroundSecondary,
+            borderRadius: theme.borderRadius.lg,
+            borderWidth: 2,
+            borderColor: theme.colors.wizard.primary + '30',
+            borderStyle: 'dashed',
+            padding: theme.spacing['2xl'],
+            minHeight: 200,
+            position: 'relative',
+          },
+          style,
+        ]}
+        onPress={() => setShowUpgradeModal(true)}
+        activeOpacity={0.7}
+      >
+        {/* Badge - floating or centered based on config */}
+        {config.showBadge && config.badgePosition === 'floating' && (
             <View
               style={{
                 position: 'absolute',
-                top: -30,
+                top: -12,
+                left: theme.spacing.lg,
                 backgroundColor: theme.colors.wizard.primary,
                 paddingHorizontal: theme.spacing.md,
                 paddingVertical: theme.spacing.xs,
@@ -322,6 +232,11 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
                 flexDirection: 'row',
                 alignItems: 'center',
                 zIndex: 10,
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
               }}
             >
               <MaterialCommunityIcons
@@ -340,56 +255,110 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
                 Premium Only Feature
               </Text>
             </View>
+          )}
 
-            <View
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: theme.colors.wizard.primary + '20',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: theme.spacing.md,
-              }}
-            >
-              <MaterialCommunityIcons
-                name="lock"
-                size={24}
-                color={theme.colors.wizard.primary}
-              />
-            </View>
+          {/* Main content - centered */}
+          <View
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* Centered badge for large size */}
+            {config.showBadge && config.badgePosition === 'centered' && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.wizard.primary,
+                  paddingHorizontal: theme.spacing.md,
+                  paddingVertical: theme.spacing.xs,
+                  borderRadius: theme.borderRadius.lg,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: theme.spacing.lg,
+                  elevation: 2,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="crown"
+                  size={16}
+                  color="#ffffff"
+                  style={{ marginRight: theme.spacing.xs }}
+                />
+                <Text
+                  style={{
+                    fontSize: theme.typography.fontSize.bodyMedium,
+                    fontWeight: theme.typography.fontWeight.bold,
+                    color: '#ffffff',
+                  }}
+                >
+                  Premium Only Feature
+                </Text>
+              </View>
+            )}
 
             <Text
               style={{
-                fontSize: theme.typography.fontSize.bodyMedium,
+                fontSize: config.titleSize,
                 fontWeight: theme.typography.fontWeight.semibold,
                 color: theme.colors.theme.text,
                 textAlign: 'center',
-                marginBottom: theme.spacing.xs,
+                marginBottom: config.showDescription ? theme.spacing.md : theme.spacing.lg,
               }}
             >
               {featureName}
             </Text>
 
-            <Text
+            {config.showDescription && (
+              <Text
+                style={{
+                  fontSize: config.descriptionSize,
+                  color: theme.colors.theme.textSecondary,
+                  textAlign: 'center',
+                  lineHeight: config.descriptionSize * 1.4,
+                  marginBottom: theme.spacing.xl,
+                  paddingHorizontal: theme.spacing.md,
+                }}
+              >
+                {description || `Unlock ${featureName} with Premium subscription`}
+              </Text>
+            )}
+
+            <View
               style={{
-                fontSize: theme.typography.fontSize.bodySmall,
-                color: theme.colors.theme.textSecondary,
-                textAlign: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
               }}
             >
-              Tap to Upgrade
-            </Text>
+              <MaterialCommunityIcons
+                name="crown"
+                size={18}
+                color={theme.colors.wizard.accent}
+                style={{ marginRight: theme.spacing.xs }}
+              />
+              <Text
+                style={{
+                  fontSize: theme.typography.fontSize.bodyLarge,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  color: theme.colors.wizard.accent,
+                  textAlign: 'center',
+                }}
+              >
+                Tap to Upgrade
+              </Text>
+            </View>
           </View>
         </TouchableOpacity>
-      </View>
 
-      <UpgradeModal
-        visible={showUpgradeModal}
-        onDismiss={() => setShowUpgradeModal(false)}
-        featureName={featureName}
-        description={description}
-      />
-    </>
-  );
+        <UpgradeModal
+          visible={showUpgradeModal}
+          onDismiss={() => setShowUpgradeModal(false)}
+          featureName={featureName}
+          description={description}
+        />
+      </>
+    );
 };

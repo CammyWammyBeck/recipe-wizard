@@ -348,7 +348,7 @@ export function AllHistorySection({ style }: AllHistorySectionProps) {
             <PremiumFeature
               featureName="Complete Recipe History"
               description="Access your full recipe history and load more recipes from your cooking journey. Never lose track of your favorite dishes!"
-              mode="overlay"
+              size="medium"
               style={{ marginTop: theme.spacing.md }}
             >
               <TouchableOpacity
