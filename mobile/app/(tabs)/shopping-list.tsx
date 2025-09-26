@@ -13,14 +13,13 @@ import { CheckboxItem } from '../../components/CheckboxItem';
 import { HeaderComponent } from '../../components/HeaderComponent';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PremiumFeature } from '../../components/PremiumFeature';
-import Constants from 'expo-constants';
+import { usePremium, PREMIUM_FEATURES } from '../../contexts/PremiumContext';
+import { PremiumBadge } from '../../components/PremiumBadge';
 
 export default function ShoppingListScreen() {
   const { theme, isDark } = useAppTheme();
   const { isOnline } = useNetworkStatus();
-
-  // Check premium status
-  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
+  const { isPremium, checkPremiumFeature } = usePremium();
 
   // Create Paper-compatible theme
   const paperTheme: MD3Theme = {
@@ -371,54 +370,51 @@ export default function ShoppingListScreen() {
     );
   }
 
-  if (shoppingList.length === 0) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
-          <View style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: 32
-          }}>
-            <MaterialCommunityIcons
-              name="cart-outline"
-              size={80}
-              color={theme.colors.theme.textSecondary}
-            />
-            <Text
-              style={{
-                fontSize: theme.typography.fontSize.headlineMedium,
-                fontWeight: theme.typography.fontWeight.bold,
-                color: theme.colors.theme.text,
-                textAlign: 'center',
-                marginTop: 16,
-                marginBottom: 8
-              }}
-            >
-              Your Shopping List is Empty
-            </Text>
-            <Text
-              style={{
-                fontSize: theme.typography.fontSize.bodyLarge,
-                color: theme.colors.theme.textSecondary,
-                textAlign: 'center',
-                lineHeight: 24
-              }}
-            >
-              Add recipes to your shopping list from the recipe screen to get started!
-            </Text>
-          </View>
-        </SafeAreaView>
-    );
-  }
+  const renderEmptyState = () => (
+    <View style={{
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32
+    }}>
+      <MaterialCommunityIcons
+        name="cart-outline"
+        size={80}
+        color={theme.colors.theme.textSecondary}
+      />
+      <Text
+        style={{
+          fontSize: theme.typography.fontSize.headlineMedium,
+          fontWeight: theme.typography.fontWeight.bold,
+          color: theme.colors.theme.text,
+          textAlign: 'center',
+          marginTop: 16,
+          marginBottom: 8
+        }}
+      >
+        Your Shopping List is Empty
+      </Text>
+      <Text
+        style={{
+          fontSize: theme.typography.fontSize.bodyLarge,
+          color: theme.colors.theme.textSecondary,
+          textAlign: 'center',
+          lineHeight: 24
+        }}
+      >
+        Add recipes to your shopping list from the recipe screen to get started!
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.theme.background }} edges={['top']}>
         <HeaderComponent
           title="Shopping List"
-          subtitle={`${completedItems}/${totalItems} items completed`}
+          subtitle={shoppingList.length === 0 ? "Empty" : `${completedItems}/${totalItems} items completed`}
           rightContent={
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <PremiumBadge size="small" style={{ marginRight: theme.spacing.sm }} />
               {!isOnline && (
                 <MaterialCommunityIcons
                   name="wifi-off"
@@ -427,36 +423,35 @@ export default function ShoppingListScreen() {
                   style={{ marginRight: 16 }}
                 />
               )}
-              <TouchableOpacity
-                onPress={() => setClearDialogVisible(true)}
-                disabled={shoppingList.length === 0}
-                style={{
-                  opacity: shoppingList.length === 0 ? 0.5 : 1,
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="delete-sweep"
-                  size={24}
-                  color={theme.colors.theme.textSecondary}
-                />
-              </TouchableOpacity>
+              {shoppingList.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setClearDialogVisible(true)}
+                >
+                  <MaterialCommunityIcons
+                    name="delete-sweep"
+                    size={24}
+                    color={theme.colors.theme.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           }
         />
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 20 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.colors.wizard.primary}
-            />
-          }
-        >
-          {categories.map(category => {
+        {shoppingList.length === 0 ? renderEmptyState() : (
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.colors.wizard.primary}
+              />
+            }
+          >
+            {categories.map(category => {
             const categoryItems = itemsByCategory[category];
             const categoryColor = getCategoryColor(category);
             const checkedInCategory = categoryItems.filter(item => item.isChecked).length;
@@ -662,7 +657,8 @@ export default function ShoppingListScreen() {
               </View>
             );
           })}
-        </ScrollView>
+          </ScrollView>
+        )}
 
         {/* Clear Confirmation Dialog */}
         <Portal>

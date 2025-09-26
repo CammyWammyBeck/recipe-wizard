@@ -6,9 +6,10 @@ import {
   ViewStyle,
   Modal,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useAppTheme } from '../constants/ThemeProvider';
+import { usePremium } from '../contexts/PremiumContext';
 import { Button } from './Button';
 
 interface PremiumFeatureProps {
@@ -33,6 +34,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
   description,
 }) => {
   const { theme } = useAppTheme();
+  const router = useRouter();
 
   return (
     <Modal
@@ -121,13 +123,12 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
           <Button
             variant="primary"
             onPress={() => {
-              // TODO: Navigate to subscription flow
-              console.log('Navigate to subscription');
               onDismiss();
+              router.push('/subscription/benefits');
             }}
             leftIcon="crown"
           >
-            Upgrade to Premium
+            Learn More
           </Button>
 
           <Button variant="secondary" onPress={onDismiss}>
@@ -159,10 +160,11 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   size = 'medium',
 }) => {
   const { theme } = useAppTheme();
+  const { isPremium, checkPremiumFeature } = usePremium();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  // Check premium status from environment variable
-  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
+  // Check if this specific feature is available
+  const hasFeatureAccess = checkPremiumFeature(featureName);
 
   // Size configurations for replace mode
   const sizeConfig = {
@@ -190,8 +192,8 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
 
   const config = sizeConfig[size];
 
-  // If user has premium, just render children normally
-  if (isPremium) {
+  // If user has access to this feature, just render children normally
+  if (hasFeatureAccess) {
     return <>{children}</>;
   }
 

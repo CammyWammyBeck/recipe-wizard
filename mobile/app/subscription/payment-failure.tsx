@@ -23,38 +23,65 @@ export default function PaymentFailureScreen() {
   // Get failure details from params
   const planTitle = params.planTitle as string || 'Premium Plan';
   const planPrice = params.planPrice as string || '$4.99';
-  const reason = params.reason as string || 'Payment could not be processed. Please try again.';
+  const errorParam = params.error as string;
+
+  // Map common Revenue Cat errors to user-friendly messages
+  const getErrorMessage = (error: string): string => {
+    if (!error) return 'Payment could not be processed. Please try again.';
+
+    if (error.includes('cancelled') || error.includes('Purchase was cancelled')) {
+      return 'Payment was cancelled. You can try again when ready.';
+    }
+    if (error.includes('Payment is pending')) {
+      return 'Payment is being processed. This may take a few minutes to complete.';
+    }
+    if (error.includes('Product not available')) {
+      return 'This subscription is temporarily unavailable. Please try again later.';
+    }
+    if (error.includes('Store connection problem')) {
+      return 'Unable to connect to the app store. Please check your internet connection and try again.';
+    }
+    if (error.includes('Network error')) {
+      return 'Network connection issue. Please check your internet and try again.';
+    }
+
+    return error || 'Payment could not be processed. Please try again.';
+  };
+
+  const reason = getErrorMessage(errorParam);
 
   // Animation states
   const [errorScale] = useState(new Animated.Value(0));
   const [contentOpacity] = useState(new Animated.Value(0));
   const [shakeAnimation] = useState(new Animated.Value(0));
 
-  // Common failure reasons and solutions
+  // Common failure reasons and solutions for app store purchases
   const failureReasons = [
     {
-      issue: 'Card Declined',
+      issue: 'Payment Method Issues',
       solutions: [
-        'Check that your card details are correct',
-        'Ensure your card has sufficient funds',
-        'Contact your bank to authorize the payment',
-        'Try a different payment method',
+        'Update your payment method in your device\'s app store settings',
+        'Ensure your payment method has sufficient funds',
+        'Check if your payment method is accepted in your region',
+        'Contact your bank if payments are being blocked',
       ]
     },
     {
-      issue: 'Expired Card',
-      solutions: [
-        'Check your card expiry date',
-        'Use a different card that hasn\'t expired',
-        'Update your payment method',
-      ]
-    },
-    {
-      issue: 'Network Error',
+      issue: 'App Store Connection',
       solutions: [
         'Check your internet connection',
+        'Make sure you\'re signed in to your app store account',
         'Try again in a few moments',
-        'Switch to a different network if possible',
+        'Restart the app and try again',
+      ]
+    },
+    {
+      issue: 'Region or Account Issues',
+      solutions: [
+        'Make sure your app store account region supports subscriptions',
+        'Check if parental controls are blocking purchases',
+        'Verify your account is in good standing',
+        'Try signing out and back into your app store account',
       ]
     },
   ];
@@ -104,7 +131,7 @@ export default function PaymentFailureScreen() {
   const handleContactSupport = () => {
     Alert.alert(
       'Contact Support',
-      'In a production app, this would open a support contact form, live chat, or email client.',
+      'For payment issues, you can:\n\n• Contact Recipe Wizard support for app-related issues\n• Contact Apple/Google for app store payment problems\n• Check your app store purchase history\n\nIn production, this would provide direct contact options.',
       [
         {
           text: 'OK',
@@ -403,7 +430,10 @@ export default function PaymentFailureScreen() {
             textAlign: 'center',
             lineHeight: 18,
           }}>
-            Development Mode: This is a simulated payment failure (10% chance). No actual payment was attempted.
+            {errorParam ?
+              `Error: ${errorParam}. In production, purchases would be handled through your device's app store.` :
+              'Development Mode: This is a simulated payment failure. In production, payments would be processed through the app store.'
+            }
           </Text>
         </View>
 

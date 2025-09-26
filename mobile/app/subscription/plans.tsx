@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useAppTheme } from '../../constants/ThemeProvider';
 import { usePremium } from '../../contexts/PremiumContext';
 import { HeaderComponent } from '../../components/HeaderComponent';
 import { Button } from '../../components/Button';
+import { PACKAGE_TYPE } from 'react-native-purchases';
 
 interface PlanFeature {
   icon: string;
@@ -34,96 +35,174 @@ interface SubscriptionPlan {
 export default function SubscriptionPlansScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const { isPremium, setPremiumStatus } = usePremium();
+  const {
+    isPremium,
+    offerings,
+    purchaseInfo,
+    purchasePackage,
+    restorePurchases,
+    refreshPurchases
+  } = usePremium();
   const [selectedPlan, setSelectedPlan] = useState<string>('monthly');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
-  const plans: SubscriptionPlan[] = [
-    {
-      id: 'monthly',
-      title: 'Monthly Premium',
-      price: '$4.99',
-      period: 'month',
-      features: [
-        {
-          icon: 'lightbulb',
-          title: 'AI Recipe Ideas',
-          description: 'Get personalized recipe suggestions'
-        },
-        {
-          icon: 'cart',
-          title: 'Smart Shopping Lists',
-          description: 'Organized grocery lists with categories'
-        },
-        {
-          icon: 'history',
-          title: 'Complete Recipe History',
-          description: 'Access all your previous recipes'
-        },
-        {
-          icon: 'pencil',
-          title: 'Recipe Modification',
-          description: 'Edit and customize recipes'
-        },
-      ],
-    },
-    {
-      id: 'yearly',
-      title: 'Yearly Premium',
-      price: '$49.99',
-      period: 'year',
-      originalPrice: '$59.88',
-      savings: 'Save $9.89',
-      popular: true,
-      features: [
-        {
-          icon: 'lightbulb',
-          title: 'AI Recipe Ideas',
-          description: 'Get personalized recipe suggestions'
-        },
-        {
-          icon: 'cart',
-          title: 'Smart Shopping Lists',
-          description: 'Organized grocery lists with categories'
-        },
-        {
-          icon: 'history',
-          title: 'Complete Recipe History',
-          description: 'Access all your previous recipes'
-        },
-        {
-          icon: 'pencil',
-          title: 'Recipe Modification',
-          description: 'Edit and customize recipes'
-        },
-        {
-          icon: 'star',
-          title: 'Priority Support',
-          description: 'Get help faster with priority customer support'
-        },
-        {
-          icon: 'update',
-          title: 'Early Access',
-          description: 'Be first to try new features and updates'
-        },
-      ],
-    },
-  ];
+  useEffect(() => {
+    // Auto-select the first available package
+    if (offerings.length > 0 && offerings[0].packages.length > 0) {
+      const firstPackage = offerings[0].packages[0];
+      setSelectedPlan(firstPackage.identifier);
+    }
+  }, [offerings]);
+
+  // Convert Revenue Cat offerings to our plan format
+  const getPlansFromOfferings = (): SubscriptionPlan[] => {
+    if (offerings.length === 0) {
+      return [];
+    }
+
+    const baseFeatures = [
+      {
+        icon: 'lightbulb',
+        title: 'AI Recipe Ideas',
+        description: 'Get personalized recipe suggestions'
+      },
+      {
+        icon: 'cart',
+        title: 'Smart Shopping Lists',
+        description: 'Organized grocery lists with categories'
+      },
+      {
+        icon: 'history',
+        title: 'Complete Recipe History',
+        description: 'Access all your previous recipes'
+      },
+      {
+        icon: 'pencil',
+        title: 'Recipe Modification',
+        description: 'Edit and customize recipes'
+      },
+    ];
+
+    const yearlyFeatures = [
+      ...baseFeatures,
+      {
+        icon: 'star',
+        title: 'Priority Support',
+        description: 'Get help faster with priority customer support'
+      },
+      {
+        icon: 'update',
+        title: 'Early Access',
+        description: 'Be first to try new features and updates'
+      },
+    ];
+
+    return offerings[0].packages.map((pkg) => {
+      const isYearly = pkg.packageType === PACKAGE_TYPE.ANNUAL;
+      const isMonthly = pkg.packageType === PACKAGE_TYPE.MONTHLY;
+
+      let period = 'period';
+      let title = pkg.product.title;
+
+      if (isMonthly) {
+        period = 'month';
+        title = title || 'Monthly Premium';
+      } else if (isYearly) {
+        period = 'year';
+        title = title || 'Yearly Premium';
+      }
+
+      // Calculate savings for yearly plan
+      const originalPrice = pkg.product.introPrice?.priceString;
+      const savings = pkg.product.introPrice ?
+        `Save with intro offer` : undefined;
+
+      return {
+        id: pkg.identifier,
+        title,
+        price: pkg.product.priceString,
+        period,
+        originalPrice,
+        savings,
+        popular: isYearly,
+        features: isYearly ? yearlyFeatures : baseFeatures,
+      };
+    });
+  };
+
+  const plans = getPlansFromOfferings();
 
   const handleSubscribe = async (planId: string) => {
-    const plan = plans.find(p => p.id === planId);
-    if (!plan) return;
+    if (offerings.length === 0) {
+      Alert.alert('Error', 'No subscription plans available at the moment. Please try again later.');
+      return;
+    }
 
-    // Navigate to payment screen with plan details
-    router.push({
-      pathname: '/subscription/payment',
-      params: {
-        planId: plan.id,
-        planTitle: plan.title,
-        planPrice: plan.price,
-        planPeriod: plan.period,
+    // Find the package from Revenue Cat offerings
+    const packageToPurchase = offerings[0].packages.find(pkg =>
+      pkg.product.identifier === planId || pkg.product.identifier.startsWith(planId)
+    );
+    if (!packageToPurchase) {
+      Alert.alert('Error', 'Selected plan not found. Please try again.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const success = await purchasePackage(packageToPurchase);
+
+      if (success) {
+        // Navigate to success screen
+        router.push('/subscription/payment-success');
+      } else {
+        Alert.alert('Purchase Failed', 'The purchase could not be completed. Please try again.');
       }
-    });
+    } catch (error) {
+      console.error('Purchase error:', error);
+
+      // Navigate to failure screen with error details
+      router.push({
+        pathname: '/subscription/payment-failure',
+        params: {
+          error: error instanceof Error ? error.message : 'Unknown error occurred'
+        }
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      setIsRestoring(true);
+
+      const success = await restorePurchases();
+
+      if (success) {
+        Alert.alert(
+          'Restore Successful',
+          'Your purchases have been restored successfully.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'No Purchases Found',
+          'No previous purchases were found to restore.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Restore error:', error);
+      Alert.alert(
+        'Restore Failed',
+        'Failed to restore purchases. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const renderPlanCard = (plan: SubscriptionPlan) => (
@@ -332,8 +411,44 @@ export default function SubscriptionPlansScreen() {
               fontSize: theme.typography.fontSize.bodyMedium,
               color: theme.colors.theme.textSecondary,
               textAlign: 'center',
+              marginBottom: theme.spacing.sm,
             }}>
-              You can change your plan or manage your subscription below.
+              {purchaseInfo?.productId ?
+                `Active: ${purchaseInfo.productId}` :
+                'You can change your plan or manage your subscription below.'
+              }
+            </Text>
+            {purchaseInfo?.expirationDate && (
+              <Text style={{
+                fontSize: theme.typography.fontSize.bodySmall,
+                color: theme.colors.theme.textTertiary,
+                textAlign: 'center',
+              }}>
+                {purchaseInfo.willRenew ? 'Renews' : 'Expires'}: {new Date(purchaseInfo.expirationDate).toLocaleDateString()}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Loading state for empty offerings */}
+        {offerings.length === 0 && (
+          <View style={{
+            padding: theme.spacing.xl,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <MaterialCommunityIcons
+              name="loading"
+              size={32}
+              color={theme.colors.theme.textSecondary}
+              style={{ marginBottom: theme.spacing.md }}
+            />
+            <Text style={{
+              fontSize: theme.typography.fontSize.bodyMedium,
+              color: theme.colors.theme.textSecondary,
+              textAlign: 'center',
+            }}>
+              Loading subscription plans...
             </Text>
           </View>
         )}
@@ -342,14 +457,27 @@ export default function SubscriptionPlansScreen() {
         {plans.map(renderPlanCard)}
 
         {/* Subscribe Button */}
+        {plans.length > 0 && (
+          <Button
+            onPress={() => handleSubscribe(selectedPlan)}
+            variant="primary"
+            leftIcon="crown"
+            loading={isLoading}
+            style={{ marginBottom: theme.spacing.md }}
+          >
+            {isPremium ? 'Change Plan' : `Start ${plans.find(p => p.id === selectedPlan)?.title}`}
+          </Button>
+        )}
+
+        {/* Restore Purchases Button */}
         <Button
-          onPress={() => handleSubscribe(selectedPlan)}
-          variant="primary"
-          leftIcon="crown"
-          loading={isLoading}
+          onPress={handleRestorePurchases}
+          variant="secondary"
+          leftIcon="refresh"
+          loading={isRestoring}
           style={{ marginBottom: theme.spacing.lg }}
         >
-          {isPremium ? 'Change Plan' : `Start ${plans.find(p => p.id === selectedPlan)?.title}`}
+          Restore Purchases
         </Button>
 
         {/* Terms */}
@@ -367,7 +495,10 @@ export default function SubscriptionPlansScreen() {
             textAlign: 'center',
             lineHeight: 18,
           }}>
-            Development Mode: This is a mock subscription flow. In production, payments will be processed through your device's app store. Terms and conditions apply.
+            {offerings.length === 0 ?
+              'Loading subscription options from the app store...' :
+              'Subscriptions are managed through your device\'s app store. You can cancel anytime from your App Store or Google Play account settings. Terms and conditions apply.'
+            }
           </Text>
         </View>
       </ScrollView>

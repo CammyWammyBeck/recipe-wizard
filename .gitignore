@@ -30,9 +30,11 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (contains API keys and sensitive data)
 .env*.local
 .env
+mobile/.env
+mobile/.env.local
 
 # typescript
 *.tsbuildinfo

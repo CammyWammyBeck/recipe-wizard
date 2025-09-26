@@ -10,6 +10,7 @@ import { apiService } from '../../services/api';
 import { SavedRecipesSection } from '../../components/SavedRecipesSection';
 import { AllHistorySection } from '../../components/AllHistorySection';
 import { HeaderComponent } from '../../components/HeaderComponent';
+import { PremiumBadge } from '../../components/PremiumBadge';
 
 export default function HistoryScreen() {
   const { theme, isDark } = useAppTheme();
@@ -128,6 +129,7 @@ export default function HistoryScreen() {
           <HeaderComponent
             title="Recipe History"
             subtitle="Your saved recipes and cooking history"
+            rightContent={<PremiumBadge size="small" />}
           />
 
           {/* Content */}

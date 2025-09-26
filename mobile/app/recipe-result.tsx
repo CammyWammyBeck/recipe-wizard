@@ -26,7 +26,7 @@ import { PreferencesService } from '../services/preferences';
 import { getRandomLoadingButtonText } from '../constants/copy';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { PremiumFeature } from '../components/PremiumFeature';
-import Constants from 'expo-constants';
+import { usePremium, PREMIUM_FEATURES } from '../contexts/PremiumContext';
 
 
 export default function RecipeResultScreen() {
@@ -35,9 +35,7 @@ export default function RecipeResultScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { isOnline } = useNetworkStatus();
-
-  // Check premium status
-  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
+  const { isPremium, checkPremiumFeature } = usePremium();
 
   const [recipeData, setRecipeData] = useState<RecipeGenerationResponse | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);

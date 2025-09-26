@@ -19,32 +19,53 @@ export default function PaymentSuccessScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { isPremium } = usePremium();
+  const { isPremium, purchaseInfo, refreshPurchases } = usePremium();
 
-  // Get payment details from params
-  const planTitle = params.planTitle as string || 'Premium Plan';
-  const planPrice = params.planPrice as string || '$4.99';
-  const planPeriod = params.planPeriod as string || 'month';
-  const paymentMethod = params.paymentMethod as string || 'Payment Method';
+  useEffect(() => {
+    // Refresh purchase status to get latest information
+    refreshPurchases();
+  }, [refreshPurchases]);
+
+  // Get payment details from Revenue Cat purchase info or fallback to params
+  const planTitle = purchaseInfo?.productId || params.planTitle as string || 'Premium Plan';
+  const planPrice = params.planPrice as string || 'Premium';
+  const planPeriod = params.planPeriod as string || 'subscription';
+  const paymentMethod = 'App Store';
 
   // Animation states
   const [checkmarkScale] = useState(new Animated.Value(0));
   const [contentOpacity] = useState(new Animated.Value(0));
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Mock transaction details
-  const transactionId = 'TXN' + Math.random().toString(36).substr(2, 8).toUpperCase();
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const nextBilling = new Date(Date.now() + (planPeriod === 'year' ? 365 : 30) * 24 * 60 * 60 * 1000)
-    .toLocaleDateString('en-US', {
+  // Transaction details from Revenue Cat or mock
+  const transactionId = purchaseInfo?.originalPurchaseDate ?
+    'RC' + new Date(purchaseInfo.originalPurchaseDate).getTime().toString().slice(-8) :
+    'TXN' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+  const currentDate = purchaseInfo?.originalPurchaseDate ?
+    new Date(purchaseInfo.originalPurchaseDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }) :
+    new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
+
+  const nextBilling = purchaseInfo?.expirationDate ?
+    new Date(purchaseInfo.expirationDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }) :
+    new Date(Date.now() + (planPeriod === 'year' ? 365 : 30) * 24 * 60 * 60 * 1000)
+      .toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
 
   useEffect(() => {
     // Animate checkmark
@@ -448,7 +469,10 @@ export default function PaymentSuccessScreen() {
             textAlign: 'center',
             lineHeight: 18,
           }}>
-            Development Mode: This is a simulated successful payment. No actual charge was made to your payment method.
+            {purchaseInfo?.isActive && purchaseInfo.productId ?
+              `Subscription active via Revenue Cat. Manage your subscription through your device's app store.` :
+              'Development Mode: This is a simulated successful payment. In production, this would be processed through the app store.'
+            }
           </Text>
         </View>
 

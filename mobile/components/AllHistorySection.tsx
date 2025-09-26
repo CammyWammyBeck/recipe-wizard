@@ -12,7 +12,7 @@ import { ExpandableCard } from './ExpandableCard';
 import { apiService } from '../services/api';
 import { SavedRecipeData } from '../types/api';
 import { PremiumFeature } from './PremiumFeature';
-import Constants from 'expo-constants';
+import { usePremium, PREMIUM_FEATURES } from '../contexts/PremiumContext';
 
 interface AllHistorySectionProps {
   style?: ViewStyle;
@@ -21,9 +21,7 @@ interface AllHistorySectionProps {
 export function AllHistorySection({ style }: AllHistorySectionProps) {
   const { theme } = useAppTheme();
   const router = useRouter();
-
-  // Check premium status
-  const isPremium = Constants.expoConfig?.extra?.isPremium ?? false;
+  const { isPremium, checkPremiumFeature } = usePremium();
 
   const [allRecipes, setAllRecipes] = useState<SavedRecipeData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
