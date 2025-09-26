@@ -69,7 +69,7 @@ class PurchasesService {
       const isExpoGo = Constants.appOwnership === 'expo';
 
       if (isExpoGo) {
-        if (__DEV__) // console.log('🔧 Expo Go detected - Revenue Cat disabled, using mock mode');
+        if (__DEV__) { /* console.log('🔧 Expo Go detected - Revenue Cat disabled, using mock mode'); */ }
         this.isInitialized = true;
         return;
       }
@@ -114,11 +114,11 @@ class PurchasesService {
       // console.log('📞 Making RevenueCat API call: getCustomerInfo()');
       const customerInfo = await Purchases.getCustomerInfo();
       // console.log('✅ getCustomerInfo() success:', {
-        originalAppUserId: customerInfo.originalAppUserId,
-        activeEntitlements: Object.keys(customerInfo.entitlements.active),
-        allEntitlements: Object.keys(customerInfo.entitlements.all),
-        requestDate: customerInfo.requestDate
-      });
+      //   originalAppUserId: customerInfo.originalAppUserId,
+      //   activeEntitlements: Object.keys(customerInfo.entitlements.active),
+      //   allEntitlements: Object.keys(customerInfo.entitlements.all),
+      //   requestDate: customerInfo.requestDate
+      // });
       return customerInfo;
     } catch (error: any) {
       console.error('❌ getCustomerInfo() failed:', {
@@ -182,28 +182,28 @@ class PurchasesService {
       const offerings = await Purchases.getOfferings();
 
       // console.log('✅ getOfferings() raw response:', {
-        currentOfferingId: offerings.current?.identifier,
-        allOfferingsCount: Object.keys(offerings.all).length,
-        allOfferingIds: Object.keys(offerings.all),
-        fullResponse: offerings
-      });
+      //   currentOfferingId: offerings.current?.identifier,
+      //   allOfferingsCount: Object.keys(offerings.all).length,
+      //   allOfferingIds: Object.keys(offerings.all),
+      //   fullResponse: offerings
+      // });
 
       const processedOfferings = Object.values(offerings.all).map((offering: Offering) => {
         // console.log(`📦 Processing offering: ${offering.identifier}`, {
-          description: offering.serverDescription,
-          packagesCount: offering.availablePackages.length,
-          packageIds: offering.availablePackages.map(p => p.identifier)
-        });
+        //   description: offering.serverDescription,
+        //   packagesCount: offering.availablePackages.length,
+        //   packageIds: offering.availablePackages.map(p => p.identifier)
+        // });
 
         return {
           identifier: offering.identifier,
           serverDescription: offering.serverDescription,
           packages: offering.availablePackages.map((pkg: Package) => {
             // console.log(`📦 Processing package: ${pkg.identifier}`, {
-              productId: pkg.product.identifier,
-              price: pkg.product.priceString,
-              title: pkg.product.title
-            });
+            //   productId: pkg.product.identifier,
+            //   price: pkg.product.priceString,
+            //   title: pkg.product.title
+            // });
 
             return {
               identifier: pkg.identifier,
