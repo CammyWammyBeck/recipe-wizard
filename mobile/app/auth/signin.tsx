@@ -25,12 +25,12 @@ export default function SignInScreen() {
 
     try {
       setError('');
-      console.log('Sign in attempted with:', { email, password });
+      // console.log('Sign in attempted with:', { email, password });
       
       await login({ email, password });
       
       // Navigate to prompt screen after successful login
-      console.log('✅ Login successful, navigating to prompt');
+      // console.log('✅ Login successful, navigating to prompt');
       router.replace('/prompt');
       
     } catch (error) {
@@ -44,8 +44,7 @@ export default function SignInScreen() {
   };
 
   const handleForgotPassword = () => {
-    // TODO: Implement forgot password
-    console.log('Forgot password pressed');
+    Alert.alert('Forgot Password', 'Please contact support at support@recipewizardapp.com for password reset assistance.');
   };
 
   const handleBack = () => {

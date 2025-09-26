@@ -58,15 +58,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const effectiveTheme = getEffectiveTheme(themeMode, systemColorScheme, forcedSystemScheme);
   const isDark = effectiveTheme === 'dark';
 
-  // Debug logging for theme changes
-  useEffect(() => {
-    console.log('🎨 Theme Debug:', {
-      themeMode,
-      systemColorScheme,
-      effectiveTheme,
-      isDark
-    });
-  }, [themeMode, systemColorScheme, effectiveTheme, isDark]);
   
   // Build the theme object with the correct colors
   const theme = {
@@ -89,7 +80,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         const themePreference = await PreferencesService.getThemePreference();
         setThemeModeState(themePreference);
       } catch (error) {
-        console.warn('Failed to load theme preference:', error);
         // Fallback to old storage method
         try {
           const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
@@ -97,7 +87,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
             setThemeModeState(savedTheme as ThemeMode);
           }
         } catch (fallbackError) {
-          console.warn('Failed to load fallback theme preference:', fallbackError);
         }
       } finally {
         setIsLoading(false);
@@ -110,12 +99,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Listen for system appearance changes as a fallback for Expo Go issues
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      console.log('🎨 System appearance changed via Appearance API:', colorScheme);
 
       // Force update the system scheme when Appearance API detects changes
       // This helps with Expo Go where useColorScheme() might not update immediately
       if (colorScheme && colorScheme !== systemColorScheme) {
-        console.log('🔄 Forcing theme update due to Appearance API change');
         setForcedSystemScheme(colorScheme);
 
         // Clear the forced scheme after a short delay to let useColorScheme catch up
@@ -135,13 +122,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       await PreferencesService.updateThemePreference(mode);
       setThemeModeState(mode);
     } catch (error) {
-      console.warn('Failed to save theme preference:', error);
       // Fallback to old storage method
       try {
         await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
         setThemeModeState(mode);
       } catch (fallbackError) {
-        console.warn('Failed to save fallback theme preference:', fallbackError);
       }
     }
   };

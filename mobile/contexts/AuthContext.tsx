@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      console.log('🔄 Initializing authentication...');
+      // console.log('🔄 Initializing authentication...');
       
       // Check if user has stored tokens
       const isAuth = await AuthService.isAuthenticated();
@@ -41,21 +41,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (validUser) {
           setUser(validUser);
-          console.log('✅ Authentication restored for:', validUser.email);
+          // console.log('✅ Authentication restored for:', validUser.email);
         } else {
           // Tokens invalid, try refresh
-          console.log('⚠️ Stored tokens invalid, attempting refresh...');
+          // console.log('⚠️ Stored tokens invalid, attempting refresh...');
           const refreshResult = await AuthService.refreshToken();
           
           if (refreshResult) {
             setUser(refreshResult.user);
-            console.log('✅ Authentication refreshed for:', refreshResult.user.email);
+            // console.log('✅ Authentication refreshed for:', refreshResult.user.email);
           } else {
-            console.log('❌ Token refresh failed, user needs to login');
+            // console.log('❌ Token refresh failed, user needs to login');
           }
         }
       } else {
-        console.log('ℹ️ No stored authentication found');
+        // console.log('ℹ️ No stored authentication found');
       }
       
     } catch (error) {
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokens = await AuthService.login(credentials);
       setUser(tokens.user);
       
-      console.log('✅ User logged in:', tokens.user.email);
+      // console.log('✅ User logged in:', tokens.user.email);
       
     } catch (error) {
       console.error('❌ Login failed in context:', error);
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokens = await AuthService.register(userData);
       setUser(tokens.user);
       
-      console.log('✅ User registered:', tokens.user.email);
+      // console.log('✅ User registered:', tokens.user.email);
       
     } catch (error) {
       console.error('❌ Registration failed in context:', error);
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await AuthService.logout();
       setUser(null);
       
-      console.log('✅ User logged out');
+      // console.log('✅ User logged out');
       
     } catch (error) {
       console.error('❌ Logout failed in context:', error);
@@ -123,10 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (refreshResult) {
         setUser(refreshResult.user);
-        console.log('✅ Auth refreshed in context');
+        // console.log('✅ Auth refreshed in context');
       } else {
         setUser(null);
-        console.log('❌ Auth refresh failed, user logged out');
+        // console.log('❌ Auth refresh failed, user logged out');
       }
       
     } catch (error) {

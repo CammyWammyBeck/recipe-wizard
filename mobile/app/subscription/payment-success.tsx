@@ -469,10 +469,7 @@ export default function PaymentSuccessScreen() {
             textAlign: 'center',
             lineHeight: 18,
           }}>
-            {purchaseInfo?.isActive && purchaseInfo.productId ?
-              `Subscription active via Revenue Cat. Manage your subscription through your device's app store.` :
-              'Development Mode: This is a simulated successful payment. In production, this would be processed through the app store.'
-            }
+            Subscription active! Manage your subscription through your device's app store.
           </Text>
         </View>
 

@@ -431,8 +431,8 @@ export default function PaymentFailureScreen() {
             lineHeight: 18,
           }}>
             {errorParam ?
-              `Error: ${errorParam}. In production, purchases would be handled through your device's app store.` :
-              'Development Mode: This is a simulated payment failure. In production, payments would be processed through the app store.'
+              `Payment failed: ${errorParam}. Please try again or contact support if the problem persists.` :
+              'Payment failed. Please try again or contact support if the problem persists.'
             }
           </Text>
         </View>

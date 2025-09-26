@@ -39,7 +39,7 @@ export default function SignUpScreen() {
 
     try {
       setError('');
-      console.log('Sign up attempted with:', { name: name.trim(), email: email.trim() });
+      // console.log('Sign up attempted with:', { name: name.trim(), email: email.trim() });
       
       const nameParts = name.trim().split(' ');
       const firstName = nameParts[0];
@@ -53,7 +53,7 @@ export default function SignUpScreen() {
       });
       
       // Navigate to prompt screen after successful registration
-      console.log('✅ Registration successful, navigating to prompt');
+      // console.log('✅ Registration successful, navigating to prompt');
       router.replace('/prompt');
       
     } catch (error) {

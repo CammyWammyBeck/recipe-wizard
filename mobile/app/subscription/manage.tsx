@@ -46,8 +46,8 @@ export default function ManageSubscriptionScreen() {
           style: 'destructive',
           onPress: () => {
             Alert.alert(
-              'Development Mode',
-              'This is a placeholder for subscription cancellation. In production, this would integrate with your payment processor.',
+              'Cancel Subscription',
+              'To cancel your subscription, please go to your device settings: iOS Settings > Apple ID > Subscriptions, or Android Play Store > Account > Subscriptions.',
             );
           },
         },
@@ -272,7 +272,7 @@ export default function ManageSubscriptionScreen() {
                 fontStyle: 'italic',
                 textAlign: 'center',
               }}>
-                Development Mode: Payment management will be handled through your device's app store (App Store or Google Play) in production.
+                Manage your subscription through your device's app store (App Store or Google Play).
               </Text>
             </View>
           </View>

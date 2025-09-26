@@ -65,11 +65,11 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
         // Use stored preference if available
         const storedStatus = JSON.parse(stored);
         setIsPremium(storedStatus);
-        console.log(`📱 Premium status loaded from storage: ${storedStatus}`);
+        // console.log(`📱 Premium status loaded from storage: ${storedStatus}`);
       } else {
         // If no stored preference, use environment variable as default
         setIsPremium(isEnvironmentPremium);
-        console.log(`🌍 Premium status from environment: ${isEnvironmentPremium}`);
+        // console.log(`🌍 Premium status from environment: ${isEnvironmentPremium}`);
 
         // Save the environment default to storage for future consistency
         if (isEnvironmentPremium) {
@@ -87,7 +87,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
     try {
       setIsPremium(status);
       await AsyncStorage.setItem(PREMIUM_STORAGE_KEY, JSON.stringify(status));
-      console.log(`✅ Premium status updated: ${status}`);
+      // console.log(`✅ Premium status updated: ${status}`);
     } catch (error) {
       console.error('❌ Failed to save premium status:', error);
       // Revert on error
@@ -103,7 +103,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
     }
 
     const hasAccess = isPremium;
-    console.log(`🔐 Premium check for "${featureName}": ${hasAccess ? 'GRANTED' : 'DENIED'}`);
+    // console.log(`🔐 Premium check for "${featureName}": ${hasAccess ? 'GRANTED' : 'DENIED'}`);
     return hasAccess;
   };
 
@@ -111,7 +111,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
   const initializePurchases = async (userId?: string) => {
     try {
       await purchasesService.initialize(userId);
-      console.log('✅ Purchase service initialized');
+      // console.log('✅ Purchase service initialized');
     } catch (error) {
       console.error('❌ Failed to initialize purchase service:', error);
       throw error;
@@ -125,11 +125,11 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
 
       // Use mock data if Revenue Cat is not properly configured
       if (purchasesService.isMockMode) {
-        console.log('🎭 Using mock purchase data');
+        // console.log('🎭 Using mock purchase data');
         currentPurchaseInfo = await purchasesService.getMockPremiumStatus();
         currentOfferings = await purchasesService.getMockOfferings();
       } else {
-        console.log('💳 Using real Revenue Cat data');
+        // console.log('💳 Using real Revenue Cat data');
         currentPurchaseInfo = await purchasesService.getPremiumStatus();
         currentOfferings = await purchasesService.getOfferings();
       }
@@ -141,7 +141,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
       // Sync with local storage for consistency
       await AsyncStorage.setItem(PREMIUM_STORAGE_KEY, JSON.stringify(currentPurchaseInfo.isActive));
 
-      console.log(`✅ Premium status refreshed: ${currentPurchaseInfo.isActive}`);
+      // console.log(`✅ Premium status refreshed: ${currentPurchaseInfo.isActive}`);
     } catch (error) {
       console.error('❌ Failed to refresh purchases:', error);
       // Don't throw - fall back to existing state
@@ -151,7 +151,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
   const purchasePackage = async (pkg: Package): Promise<boolean> => {
     try {
       if (purchasesService.isMockMode) {
-        console.log('🎭 Simulating package purchase:', pkg.identifier);
+        // console.log('🎭 Simulating package purchase:', pkg.identifier);
         // Simulate purchase success
         await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -170,12 +170,12 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
         setIsPremium(true);
         await AsyncStorage.setItem(PREMIUM_STORAGE_KEY, JSON.stringify(true));
 
-        console.log('✅ Mock purchase completed successfully');
+        // console.log('✅ Mock purchase completed successfully');
         return true;
       } else {
         await purchasesService.purchasePackage(pkg);
         await refreshPurchases();
-        console.log('✅ Real purchase completed successfully');
+        // console.log('✅ Real purchase completed successfully');
         return true;
       }
     } catch (error) {
@@ -187,14 +187,14 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
   const restorePurchases = async (): Promise<boolean> => {
     try {
       if (purchasesService.isMockMode) {
-        console.log('🎭 Simulating purchase restoration');
+        // console.log('🎭 Simulating purchase restoration');
         // For mock mode, just refresh current status
         await refreshPurchases();
         return true;
       } else {
         await purchasesService.restorePurchases();
         await refreshPurchases();
-        console.log('✅ Purchases restored successfully');
+        // console.log('✅ Purchases restored successfully');
         return true;
       }
     } catch (error) {

@@ -3,17 +3,20 @@
     "name": "RecipeWizard",
     "slug": "RecipeWizard",
     "version": "1.0.0",
+    "description": "Transform simple recipe ideas into detailed cooking instructions and organized grocery lists using AI. Generate personalized recipes, manage ingredients, and streamline your cooking experience.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "privacy": "https://cammybeck.github.io/recipe-wizard/privacy-policy.html",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cammybeck.recipewizard"
     },
     "android": {
       "adaptiveIcon": {
@@ -38,8 +41,7 @@
       "router": {},
       "eas": {
         "projectId": "13d76684-3800-406a-a071-e2c02ca60824"
-      },
-      "isPremium": false
+      }
     }
   }
 }

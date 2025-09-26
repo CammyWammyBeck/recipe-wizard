@@ -16,7 +16,7 @@ class APIService {
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
-    console.log('🔧 API Service initialized with URL:', this.baseUrl);
+    // console.log('🔧 API Service initialized with URL:', this.baseUrl);
   }
 
   /**
@@ -61,12 +61,12 @@ class APIService {
 
     // If 401, try to refresh token and retry once
     if (response.status === 401) {
-      console.log('🔄 Received 401, attempting token refresh...');
+      // console.log('🔄 Received 401, attempting token refresh...');
       
       const refreshResult = await AuthService.refreshToken();
       
       if (refreshResult) {
-        console.log('✅ Token refreshed, retrying request');
+        // console.log('✅ Token refreshed, retrying request');
         
         // Update headers with new token
         headers['Authorization'] = `Bearer ${refreshResult.accessToken}`;
@@ -77,7 +77,7 @@ class APIService {
           headers,
         });
       } else {
-        console.log('❌ Token refresh failed');
+        // console.log('❌ Token refresh failed');
         throw new Error('Authentication expired. Please log in again.');
       }
     }
@@ -112,11 +112,11 @@ class APIService {
       };
 
       const url = `${this.baseUrl}/api/recipes/generate`;
-      console.log('🚀 Making API request to:', url);
-      console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
+      // console.log('🚀 Making API request to:', url);
+      // console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
       
       const headers = await this.getAuthHeaders();
-      console.log('🔑 Using auth headers:', Object.keys(headers));
+      // console.log('🔑 Using auth headers:', Object.keys(headers));
       
       const response = await fetch(url, {
         method: 'POST',
@@ -124,7 +124,7 @@ class APIService {
         body: JSON.stringify(enhancedRequest),
       });
       
-      console.log('📡 Response status:', response.status, response.statusText);
+      // console.log('📡 Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -158,11 +158,11 @@ class APIService {
       };
 
       const url = `${this.baseUrl}/api/recipes/modify`;
-      console.log('🔄 Making recipe modification request to:', url);
-      console.log('📝 Modification request payload:', JSON.stringify(enhancedRequest, null, 2));
+      // console.log('🔄 Making recipe modification request to:', url);
+      // console.log('📝 Modification request payload:', JSON.stringify(enhancedRequest, null, 2));
       
       const headers = await this.getAuthHeaders();
-      console.log('🔑 Using auth headers:', Object.keys(headers));
+      // console.log('🔑 Using auth headers:', Object.keys(headers));
       
       const response = await fetch(url, {
         method: 'POST',
@@ -170,7 +170,7 @@ class APIService {
         body: JSON.stringify(enhancedRequest),
       });
       
-      console.log('📡 Modification response status:', response.status, response.statusText);
+      // console.log('📡 Modification response status:', response.status, response.statusText);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -190,13 +190,13 @@ class APIService {
    */
   async getRecipe(recipeId: string): Promise<RecipeGenerationResponse> {
     try {
-      console.log('🔍 Fetching recipe by ID:', recipeId);
+      // console.log('🔍 Fetching recipe by ID:', recipeId);
 
       const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/${recipeId}`, {
         method: 'GET',
       });
 
-      console.log('📡 Get recipe response status:', response.status, response.statusText);
+      // console.log('📡 Get recipe response status:', response.status, response.statusText);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -204,7 +204,7 @@ class APIService {
       }
 
       const data = await response.json();
-      console.log('✅ Recipe fetched successfully:', data.id || 'no-id');
+      // console.log('✅ Recipe fetched successfully:', data.id || 'no-id');
       return data;
     } catch (error) {
       console.error('Error fetching recipe:', error);
@@ -395,15 +395,15 @@ class APIService {
       };
 
       const url = `${this.baseUrl}/api/recipes/generate-ideas`;
-      console.log('🚀 Making recipe ideas request to:', url);
-      console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
+      // console.log('🚀 Making recipe ideas request to:', url);
+      // console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
       
       const response = await this.makeAuthenticatedRequest(url, {
         method: 'POST',
         body: JSON.stringify(enhancedRequest),
       });
       
-      console.log('📡 Ideas response status:', response.status, response.statusText);
+      // console.log('📡 Ideas response status:', response.status, response.statusText);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -454,7 +454,7 @@ class APIService {
       }
 
       const jobResponse: RecipeJobCreateResponse = await response.json();
-      console.log('🚀 Started recipe generation job:', jobResponse.job_id);
+      // console.log('🚀 Started recipe generation job:', jobResponse.job_id);
       return jobResponse;
     } catch (error) {
       console.error('Error starting recipe generation job:', error);
@@ -533,7 +533,7 @@ class APIService {
 
         // Handle completed job
         if (status.status === 'completed') {
-          console.log('✅ Job completed:', jobId);
+          // console.log('✅ Job completed:', jobId);
           const result = await this.getJobResult(jobId);
           
           // Convert to RecipeGenerationResponse format
@@ -560,7 +560,7 @@ class APIService {
         }
 
         // Continue polling for pending/processing jobs
-        console.log(`⏳ Job ${status.status} (${status.progress}%)`);
+        // console.log(`⏳ Job ${status.status} (${status.progress}%)`);
         await new Promise(resolve => setTimeout(resolve, pollInterval));
 
       } catch (error) {
@@ -593,7 +593,7 @@ class APIService {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      console.log('✅ Recipe added to shopping list:', recipeId);
+      // console.log('✅ Recipe added to shopping list:', recipeId);
     } catch (error) {
       console.error('Error adding recipe to shopping list:', error);
       throw new Error('Failed to add recipe to shopping list. Please try again.');
@@ -643,7 +643,7 @@ class APIService {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      console.log('✅ Shopping list item updated:', itemId, isChecked);
+      // console.log('✅ Shopping list item updated:', itemId, isChecked);
     } catch (error) {
       console.error('Error updating shopping list item:', error);
       throw new Error('Failed to update shopping list item. Please try again.');
@@ -664,7 +664,7 @@ class APIService {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      console.log('✅ Shopping list cleared');
+      // console.log('✅ Shopping list cleared');
     } catch (error) {
       console.error('Error clearing shopping list:', error);
       throw new Error('Failed to clear shopping list. Please try again.');

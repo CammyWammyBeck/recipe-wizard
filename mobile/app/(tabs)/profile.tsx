@@ -95,13 +95,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleTogglePremium = async () => {
-    try {
-      await setPremiumStatus(!isPremium);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update premium status. Please try again.');
-    }
-  };
 
   // Auto-save preferences with debouncing
   const autoSavePreferences = useCallback(async (preferencesToSave: UserPreferences) => {
@@ -113,7 +106,7 @@ export default function ProfileScreen() {
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPreferences));
       setLastSaved(new Date());
-      console.log('✅ Preferences auto-saved successfully');
+      // console.log('✅ Preferences auto-saved successfully');
     } catch (error) {
       console.error('❌ Failed to auto-save preferences:', error);
       // Don't show alert for auto-save failures - just log
@@ -948,69 +941,6 @@ export default function ProfileScreen() {
             defaultExpanded={false}
           >
             <View style={{ gap: theme.spacing.lg }}>
-              {/* Premium Status Toggle */}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: theme.spacing.md,
-                backgroundColor: isPremium
-                  ? theme.colors.wizard.primary + '20'
-                  : theme.colors.theme.surface,
-                borderRadius: theme.borderRadius.lg,
-                borderWidth: isPremium ? 2 : 1,
-                borderColor: isPremium
-                  ? theme.colors.wizard.primary
-                  : theme.colors.theme.border,
-              }}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
-                    <MaterialCommunityIcons
-                      name={isPremium ? "crown" : "crown-outline"}
-                      size={24}
-                      color={isPremium
-                        ? theme.colors.wizard.primary
-                        : theme.colors.theme.textSecondary
-                      }
-                      style={{ marginRight: theme.spacing.sm }}
-                    />
-                    <Text style={{
-                      fontSize: theme.typography.fontSize.bodyLarge,
-                      fontWeight: theme.typography.fontWeight.semibold,
-                      color: isPremium
-                        ? theme.colors.wizard.primary
-                        : theme.colors.theme.text,
-                    }}>
-                      {isPremium ? 'Premium Active' : 'Premium Features'}
-                    </Text>
-                  </View>
-                  <Text style={{
-                    fontSize: theme.typography.fontSize.bodySmall,
-                    color: theme.colors.theme.textSecondary,
-                    marginLeft: 32, // Align with title text
-                  }}>
-                    {isPremium
-                      ? 'All premium features unlocked'
-                      : 'Toggle for development testing'
-                    }
-                  </Text>
-                </View>
-
-                <Switch
-                  value={isPremium}
-                  onValueChange={handleTogglePremium}
-                  disabled={premiumLoading}
-                  trackColor={{
-                    false: theme.colors.theme.border,
-                    true: theme.colors.wizard.primary + '60'
-                  }}
-                  thumbColor={isPremium
-                    ? theme.colors.wizard.primary
-                    : theme.colors.theme.textTertiary
-                  }
-                />
-              </View>
-
               {/* Premium Benefits List */}
               <View>
                 <Text style={{

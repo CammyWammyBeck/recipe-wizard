@@ -72,7 +72,7 @@ export class AuthService {
    */
   static async login(credentials: LoginCredentials): Promise<AuthTokens> {
     try {
-      console.log('🔐 Attempting login for:', credentials.email);
+      // console.log('🔐 Attempting login for:', credentials.email);
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -94,7 +94,7 @@ export class AuthService {
       await this.storeTokens(tokens);
       await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(credentials));
       
-      console.log('✅ Login successful for:', tokens.user.email);
+      // console.log('✅ Login successful for:', tokens.user.email);
       return tokens;
       
     } catch (error) {
@@ -108,7 +108,7 @@ export class AuthService {
    */
   static async register(userData: RegisterData): Promise<AuthTokens> {
     try {
-      console.log('📝 Attempting registration for:', userData.email);
+      // console.log('📝 Attempting registration for:', userData.email);
       
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
@@ -133,7 +133,7 @@ export class AuthService {
         password: userData.password
       }));
       
-      console.log('✅ Registration successful for:', tokens.user.email);
+      // console.log('✅ Registration successful for:', tokens.user.email);
       return tokens;
       
     } catch (error) {
@@ -164,7 +164,7 @@ export class AuthService {
 
       // Clear stored data
       await this.clearTokens();
-      console.log('✅ Logout successful');
+      // console.log('✅ Logout successful');
       
     } catch (error) {
       console.error('❌ Logout failed:', error);
@@ -244,16 +244,16 @@ export class AuthService {
         const newTokens = transformTokenResponse(backendTokens);
         await this.storeTokens(newTokens);
         
-        console.log('✅ Token refreshed successfully via JWT');
+        // console.log('✅ Token refreshed successfully via JWT');
         return newTokens;
       }
 
       // JWT refresh failed, try credential-based re-authentication
-      console.log('⚠️ JWT refresh failed, trying credential re-authentication...');
+      // console.log('⚠️ JWT refresh failed, trying credential re-authentication...');
       
       const credentialsJson = await SecureStore.getItemAsync(CREDENTIALS_KEY);
       if (!credentialsJson) {
-        console.log('❌ No stored credentials for re-authentication');
+        // console.log('❌ No stored credentials for re-authentication');
         await this.clearTokens();
         return null;
       }
@@ -269,7 +269,7 @@ export class AuthService {
       });
 
       if (!response.ok) {
-        console.log('❌ Credential re-authentication failed');
+        // console.log('❌ Credential re-authentication failed');
         await this.clearTokens();
         return null;
       }
@@ -278,7 +278,7 @@ export class AuthService {
       const newTokens = transformTokenResponse(backendTokens);
       await this.storeTokens(newTokens);
       
-      console.log('✅ Token refreshed successfully via re-authentication');
+      // console.log('✅ Token refreshed successfully via re-authentication');
       return newTokens;
       
     } catch (error) {

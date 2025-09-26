@@ -541,7 +541,7 @@ export default function PaymentHistoryScreen() {
               textAlign: 'center',
               lineHeight: 18,
             }}>
-              Development Mode: This payment history is generated with mock data. In production, this would show real transaction history from your payment provider.
+              Your subscription history and receipts are managed through your device's app store.
             </Text>
           </View>
 

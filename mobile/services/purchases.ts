@@ -69,7 +69,7 @@ class PurchasesService {
       const isExpoGo = Constants.appOwnership === 'expo';
 
       if (isExpoGo) {
-        console.log('🔧 Expo Go detected - Revenue Cat disabled, using mock mode');
+        if (__DEV__) // console.log('🔧 Expo Go detected - Revenue Cat disabled, using mock mode');
         this.isInitialized = true;
         return;
       }
@@ -80,27 +80,14 @@ class PurchasesService {
       // For now, use Android key for both platforms since we only have Android set up
       const actualApiKey = REVENUE_CAT_API_KEY_ANDROID;
 
-      // DEBUG: Log the API key being used (first/last 4 chars only for security)
-      console.log('🔑 Revenue Cat API Key Debug:', {
-        platform: Platform.OS,
-        keyPreview: actualApiKey ? `${actualApiKey.slice(0, 4)}...${actualApiKey.slice(-4)}` : 'undefined',
-        keyLength: actualApiKey?.length || 0,
-        startsWithGoog: actualApiKey?.startsWith('goog_') || false,
-        fullKeyForDebug: actualApiKey // TEMP: Full key for debugging - REMOVE IN PRODUCTION
-      });
-
-      console.log('🔧 Environment Debug:', {
-        isExpoGo,
-        androidKeyFromEnv: REVENUE_CAT_API_KEY_ANDROID,
-        iosKeyFromEnv: REVENUE_CAT_API_KEY_IOS,
-        constantsAppOwnership: Constants.appOwnership,
-        expoConfigExtra: Constants.expoConfig?.extra
-      });
-
-      // Set debug mode for development
-      if (__DEV__) {
-        Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+      // Validate API key format
+      if (!actualApiKey || actualApiKey === 'your_android_api_key_here') {
+        throw new Error('Revenue Cat API key not configured');
       }
+
+
+      // Set appropriate log level for production
+      Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.INFO : LOG_LEVEL.WARN);
 
       // Initialize Revenue Cat
       await Purchases.configure({ apiKey: actualApiKey });
@@ -111,7 +98,7 @@ class PurchasesService {
       }
 
       this.isInitialized = true;
-      console.log('✅ Revenue Cat initialized successfully');
+      // console.log('✅ Revenue Cat initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize Revenue Cat:', error);
       throw new Error('Failed to initialize purchase service');
@@ -124,9 +111,9 @@ class PurchasesService {
     }
 
     try {
-      console.log('📞 Making RevenueCat API call: getCustomerInfo()');
+      // console.log('📞 Making RevenueCat API call: getCustomerInfo()');
       const customerInfo = await Purchases.getCustomerInfo();
-      console.log('✅ getCustomerInfo() success:', {
+      // console.log('✅ getCustomerInfo() success:', {
         originalAppUserId: customerInfo.originalAppUserId,
         activeEntitlements: Object.keys(customerInfo.entitlements.active),
         allEntitlements: Object.keys(customerInfo.entitlements.all),
@@ -191,10 +178,10 @@ class PurchasesService {
     }
 
     try {
-      console.log('📞 Making RevenueCat API call: getOfferings()');
+      // console.log('📞 Making RevenueCat API call: getOfferings()');
       const offerings = await Purchases.getOfferings();
 
-      console.log('✅ getOfferings() raw response:', {
+      // console.log('✅ getOfferings() raw response:', {
         currentOfferingId: offerings.current?.identifier,
         allOfferingsCount: Object.keys(offerings.all).length,
         allOfferingIds: Object.keys(offerings.all),
@@ -202,7 +189,7 @@ class PurchasesService {
       });
 
       const processedOfferings = Object.values(offerings.all).map((offering: Offering) => {
-        console.log(`📦 Processing offering: ${offering.identifier}`, {
+        // console.log(`📦 Processing offering: ${offering.identifier}`, {
           description: offering.serverDescription,
           packagesCount: offering.availablePackages.length,
           packageIds: offering.availablePackages.map(p => p.identifier)
@@ -212,7 +199,7 @@ class PurchasesService {
           identifier: offering.identifier,
           serverDescription: offering.serverDescription,
           packages: offering.availablePackages.map((pkg: Package) => {
-            console.log(`📦 Processing package: ${pkg.identifier}`, {
+            // console.log(`📦 Processing package: ${pkg.identifier}`, {
               productId: pkg.product.identifier,
               price: pkg.product.priceString,
               title: pkg.product.title
@@ -241,7 +228,7 @@ class PurchasesService {
         };
       });
 
-      console.log('✅ getOfferings() processed:', processedOfferings);
+      // console.log('✅ getOfferings() processed:', processedOfferings);
       return processedOfferings;
     } catch (error: any) {
       console.error('❌ getOfferings() failed:', {
@@ -260,7 +247,7 @@ class PurchasesService {
     }
 
     try {
-      console.log('🛒 Starting purchase process for:', packageToPurchase.product.identifier);
+      // console.log('🛒 Starting purchase process for:', packageToPurchase.product.identifier);
 
       // Ensure presentedOfferingContext is provided to avoid native NPE in RN bridge
       let pkgForPurchase: any = packageToPurchase as any;
@@ -278,7 +265,7 @@ class PurchasesService {
             identifier: (packageToPurchase as any).identifier,
             presentedOfferingContext: { offeringIdentifier },
           } as any;
-          console.log('ℹ️ Injected presentedOfferingContext for purchase:', offeringIdentifier);
+          // console.log('ℹ️ Injected presentedOfferingContext for purchase:', offeringIdentifier);
         } catch (ctxErr) {
           console.warn('⚠️ Failed to compute presentedOfferingContext, proceeding without. May crash on some SDKs.', ctxErr);
         }
@@ -286,7 +273,7 @@ class PurchasesService {
 
       const { customerInfo } = await Purchases.purchasePackage(pkgForPurchase as any);
 
-      console.log('✅ Purchase completed successfully');
+      // console.log('✅ Purchase completed successfully');
       return customerInfo;
     } catch (error) {
       console.error('❌ Purchase failed:', error);
@@ -317,11 +304,11 @@ class PurchasesService {
     }
 
     try {
-      console.log('🔄 Restoring purchases...');
+      // console.log('🔄 Restoring purchases...');
 
       const customerInfo = await Purchases.restorePurchases();
 
-      console.log('✅ Purchases restored successfully');
+      // console.log('✅ Purchases restored successfully');
       return customerInfo;
     } catch (error) {
       console.error('❌ Failed to restore purchases:', error);
@@ -350,7 +337,7 @@ class PurchasesService {
 
     try {
       await Purchases.logIn(userId);
-      console.log('✅ User ID set successfully:', userId);
+      // console.log('✅ User ID set successfully:', userId);
     } catch (error) {
       console.error('❌ Failed to set user ID:', error);
       throw error;
@@ -364,7 +351,7 @@ class PurchasesService {
 
     try {
       await Purchases.logOut();
-      console.log('✅ User logged out successfully');
+      // console.log('✅ User logged out successfully');
     } catch (error) {
       console.error('❌ Failed to logout:', error);
       throw error;

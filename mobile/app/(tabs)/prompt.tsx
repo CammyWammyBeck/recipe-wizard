@@ -236,13 +236,13 @@ export default function PromptScreen() {
     try {
       // TEMPORARY: Force API failure for testing - remove this!
       if (prompt.toLowerCase().includes('test fail')) {
-        console.log('Forcing API failure for testing');
+        // console.log('Forcing API failure for testing');
         await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
         throw new Error('Something went wrong. Tap to retry.');
       }
 
       // Start async job
-      console.log('Creating recipe with prompt:', prompt);
+      // console.log('Creating recipe with prompt:', prompt);
       const jobResponse = await apiService.startRecipeGeneration({
         prompt,
         overrides: {
@@ -251,7 +251,7 @@ export default function PromptScreen() {
         },
       });
       
-      console.log('🚀 Job started:', jobResponse.job_id);
+      // console.log('🚀 Job started:', jobResponse.job_id);
       
       // Poll job until completion with attempt tracking
       const recipeData = await apiService.pollJobUntilComplete(
@@ -397,7 +397,7 @@ export default function PromptScreen() {
         count: 5
       });
       
-      console.log('🎯 Received recipe ideas:', response.ideas.length);
+      // console.log('🎯 Received recipe ideas:', response.ideas.length);
       
       // Success animation - fill remaining progress
       setIdeasGenerationAttempt(2);
@@ -453,7 +453,7 @@ export default function PromptScreen() {
           });
         },
         () => {
-          console.log('Failed to measure main input position');
+          // console.log('Failed to measure main input position');
         }
       );
     }
