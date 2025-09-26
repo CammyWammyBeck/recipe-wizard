@@ -67,7 +67,7 @@ export default function SignUpScreen() {
   };
 
   const handleBack = () => {
-    router.back();
+    router.replace('/(tabs)/prompt');
   };
 
   const passwordsMatch = password === confirmPassword || confirmPassword === '';

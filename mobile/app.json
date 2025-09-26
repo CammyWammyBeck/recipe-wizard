@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "privacy": "https://cammybeck.github.io/recipe-wizard/privacy-policy.html",
+    "privacy": "https://cammywammybeck.github.io/recipe-wizard/privacy-policy.html",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",

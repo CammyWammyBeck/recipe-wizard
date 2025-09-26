@@ -73,7 +73,13 @@ export default function ManageSubscriptionScreen() {
           title="Manage Subscription"
           subtitle="No active subscription"
           rightContent={
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/profile');
+              }
+            }}>
               <MaterialCommunityIcons
                 name="close"
                 size={24}
@@ -131,7 +137,13 @@ export default function ManageSubscriptionScreen() {
         title="Manage Subscription"
         subtitle="Premium Active"
         rightContent={
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/profile');
+            }
+          }}>
             <MaterialCommunityIcons
               name="close"
               size={24}

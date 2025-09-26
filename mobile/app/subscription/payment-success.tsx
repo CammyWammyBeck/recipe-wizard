@@ -125,7 +125,7 @@ export default function PaymentSuccessScreen() {
         title="Payment Successful"
         subtitle="Welcome to Premium!"
         rightContent={
-          <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
+          <TouchableOpacity onPress={() => router.replace('/(tabs)/prompt')}>
             <MaterialCommunityIcons
               name="close"
               size={24}
@@ -447,7 +447,7 @@ export default function PaymentSuccessScreen() {
           </Button>
 
           <Button
-            onPress={() => router.replace('/(tabs)')}
+            onPress={() => router.replace('/(tabs)/prompt')}
             variant="secondary"
           >
             Continue to App

@@ -152,7 +152,7 @@ export default function PaymentFailureScreen() {
         title="Payment Failed"
         subtitle="Let's try again"
         rightContent={
-          <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
+          <TouchableOpacity onPress={() => router.replace('/(tabs)/prompt')}>
             <MaterialCommunityIcons
               name="close"
               size={24}
@@ -408,7 +408,7 @@ export default function PaymentFailureScreen() {
           </Button>
 
           <Button
-            onPress={() => router.replace('/(tabs)')}
+            onPress={() => router.replace('/(tabs)/prompt')}
             variant="secondary"
           >
             Continue Without Premium

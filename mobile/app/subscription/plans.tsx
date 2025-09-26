@@ -384,7 +384,13 @@ export default function SubscriptionPlansScreen() {
         title="Premium Plans"
         subtitle="Choose the plan that works for you"
         rightContent={
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/profile');
+            }
+          }}>
             <MaterialCommunityIcons
               name="close"
               size={24}

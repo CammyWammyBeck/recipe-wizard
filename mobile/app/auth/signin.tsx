@@ -48,7 +48,7 @@ export default function SignInScreen() {
   };
 
   const handleBack = () => {
-    router.back();
+    router.replace('/(tabs)/prompt');
   };
 
   return (
