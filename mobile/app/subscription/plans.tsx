@@ -139,12 +139,30 @@ export default function SubscriptionPlansScreen() {
       return;
     }
 
-    // Find the package from Revenue Cat offerings
-    const packageToPurchase = offerings[0].packages.find(pkg =>
-      pkg.product.identifier === planId || pkg.product.identifier.startsWith(planId)
+    // Find the package from Revenue Cat offerings by package identifier
+    const offeringPackage = offerings[0].packages.find(pkg =>
+      pkg.identifier === planId
     );
-    if (!packageToPurchase) {
+    if (!offeringPackage) {
       Alert.alert('Error', 'Selected plan not found. Please try again.');
+      console.error('Package not found:', {
+        selectedPlanId: planId,
+        availablePackages: offerings[0].packages.map(pkg => ({
+          identifier: pkg.identifier,
+          productId: pkg.product.identifier
+        }))
+      });
+      return;
+    }
+
+    // Use the original Package object for the purchase
+    const packageToPurchase = offeringPackage.originalPackage;
+    if (!packageToPurchase || !packageToPurchase.identifier) {
+      Alert.alert('Error', 'Invalid package configuration. Please try again.');
+      console.error('Invalid original package:', {
+        selectedPlanId: planId,
+        originalPackage: packageToPurchase
+      });
       return;
     }
 

@@ -2,10 +2,10 @@ import Purchases, {
   CustomerInfo,
   Offering,
   Package,
-  PurchasesError,
   INTRO_ELIGIBILITY_STATUS,
   PACKAGE_TYPE,
   LOG_LEVEL,
+  PURCHASES_ERROR_CODE,
 } from 'react-native-purchases';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -42,6 +42,7 @@ export interface OfferingInfo {
   packages: Array<{
     identifier: string;
     packageType: PACKAGE_TYPE;
+    originalPackage: Package; // Store the original Package object for purchases
     product: {
       identifier: string;
       description: string;
@@ -220,6 +221,7 @@ class PurchasesService {
             return {
               identifier: pkg.identifier,
               packageType: pkg.packageType,
+              originalPackage: pkg, // Store the original Package object
               product: {
                 identifier: pkg.product.identifier,
                 description: pkg.product.description,
@@ -260,30 +262,52 @@ class PurchasesService {
     try {
       console.log('🛒 Starting purchase process for:', packageToPurchase.product.identifier);
 
-      const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
+      // Ensure presentedOfferingContext is provided to avoid native NPE in RN bridge
+      let pkgForPurchase: any = packageToPurchase as any;
+      if (!pkgForPurchase.presentedOfferingContext) {
+        try {
+          const rcOfferings = await Purchases.getOfferings();
+          // Try to locate the offering that contains this package
+          const allOfferings: any[] = Object.values((rcOfferings as any).all || {});
+          const containingOffering = allOfferings.find((off: any) =>
+            Array.isArray(off?.availablePackages) &&
+            off.availablePackages.some((p: any) => p?.identifier === packageToPurchase.identifier)
+          );
+          const offeringIdentifier = (containingOffering?.identifier) || (rcOfferings as any).current?.identifier || 'default';
+          pkgForPurchase = {
+            identifier: (packageToPurchase as any).identifier,
+            presentedOfferingContext: { offeringIdentifier },
+          } as any;
+          console.log('ℹ️ Injected presentedOfferingContext for purchase:', offeringIdentifier);
+        } catch (ctxErr) {
+          console.warn('⚠️ Failed to compute presentedOfferingContext, proceeding without. May crash on some SDKs.', ctxErr);
+        }
+      }
+
+      const { customerInfo } = await Purchases.purchasePackage(pkgForPurchase as any);
 
       console.log('✅ Purchase completed successfully');
       return customerInfo;
     } catch (error) {
       console.error('❌ Purchase failed:', error);
 
-      // Handle specific error types
-      if (error instanceof PurchasesError) {
-        switch (error.code) {
-          case 'PURCHASE_CANCELLED':
-            throw new Error('Purchase was cancelled');
-          case 'PAYMENT_PENDING':
-            throw new Error('Payment is pending');
-          case 'PRODUCT_NOT_AVAILABLE_FOR_PURCHASE':
-            throw new Error('Product not available for purchase');
-          case 'STORE_PROBLEM':
-            throw new Error('Store connection problem');
-          default:
-            throw new Error(`Purchase failed: ${error.message}`);
-        }
-      }
+      // Robust error handling without instanceof (PurchasesError is a type, not a class)
+      const err: any = error || {};
+      const code = err.code;
 
-      throw error;
+      if (err.userCancelled || code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
+        throw new Error('Purchase was cancelled');
+      }
+      switch (code) {
+        case PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR:
+          throw new Error('Payment is pending');
+        case PURCHASES_ERROR_CODE.PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR:
+          throw new Error('Product not available for purchase');
+        case PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR:
+          throw new Error('Store connection problem');
+        default:
+          throw new Error(`Purchase failed: ${err.message || String(err)}`);
+      }
     }
   }
 
@@ -378,6 +402,7 @@ class PurchasesService {
           {
             identifier: PRODUCT_IDS.MONTHLY,
             packageType: PACKAGE_TYPE.MONTHLY,
+            originalPackage: {} as Package, // Mock package for development
             product: {
               identifier: PRODUCT_IDS.MONTHLY,
               description: 'Premium features including unlimited recipe generation and smart shopping lists',
@@ -396,6 +421,7 @@ class PurchasesService {
           {
             identifier: PRODUCT_IDS.YEARLY,
             packageType: PACKAGE_TYPE.ANNUAL,
+            originalPackage: {} as Package, // Mock package for development
             product: {
               identifier: PRODUCT_IDS.YEARLY,
               description: 'Premium features including unlimited recipe generation and smart shopping lists',

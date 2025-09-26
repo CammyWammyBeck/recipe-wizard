@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.cammybeck.recipewizard",
-      "versionCode": 5
+      "versionCode": 9
     },
     "web": {
       "bundler": "metro",
