@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { purchasesService, PurchaseInfo, OfferingInfo } from '../services/purchases';
-import { Package } from 'react-native-purchases';
+import { purchasesService, PurchaseInfo, OfferingInfo, TransactionInfo } from '../services/purchases';
+import Purchases from 'react-native-purchases';
+// Avoid tight coupling to SDK types to keep compilation flexible across versions
+type RCPackage = any;
 
 const PREMIUM_STORAGE_KEY = '@recipe_wizard_premium_status';
 
@@ -14,10 +16,11 @@ interface PremiumContextType {
   // Revenue Cat integration
   purchaseInfo: PurchaseInfo | null;
   offerings: OfferingInfo[];
-  purchasePackage: (pkg: Package) => Promise<boolean>;
+  purchasePackage: (pkg: RCPackage) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   refreshPurchases: () => Promise<void>;
   initializePurchases: (userId?: string) => Promise<void>;
+  getTransactionHistory: () => Promise<TransactionInfo[]>;
 }
 
 const PremiumContext = createContext<PremiumContextType | undefined>(undefined);
@@ -33,7 +36,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
   const [offerings, setOfferings] = useState<OfferingInfo[]>([]);
 
   // Check environment variable for initial premium status
-  const isEnvironmentPremium = Constants.expoConfig?.extra?.isPremium === 'true';
+  const isEnvironmentPremium = (process.env.EXPO_PUBLIC_IS_PREMIUM === 'true');
 
   useEffect(() => {
     initializeAndLoadStatus();
@@ -148,7 +151,16 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
     }
   };
 
-  const purchasePackage = async (pkg: Package): Promise<boolean> => {
+  // Listen for RevenueCat customer info updates (renewals, cancellations, grace period changes)
+  useEffect(() => {
+    try {
+      Purchases.addCustomerInfoUpdateListener(() => {
+        refreshPurchases();
+      });
+    } catch {}
+  }, []);
+
+  const purchasePackage = async (pkg: RCPackage): Promise<boolean> => {
     try {
       if (purchasesService.isMockMode) {
         // console.log('🎭 Simulating package purchase:', pkg.identifier);
@@ -203,6 +215,22 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
     }
   };
 
+  const getTransactionHistory = async (): Promise<TransactionInfo[]> => {
+    try {
+      if (purchasesService.isMockMode) {
+        // console.log('🎭 Getting mock transaction history');
+        return await purchasesService.getMockTransactionHistory();
+      } else {
+        // console.log('💳 Getting real transaction history');
+        return await purchasesService.getTransactionHistory();
+      }
+    } catch (error) {
+      console.error('❌ Failed to get transaction history:', error);
+      // Return empty array on error
+      return [];
+    }
+  };
+
   const value: PremiumContextType = {
     isPremium,
     isLoading,
@@ -214,6 +242,7 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
     restorePurchases,
     refreshPurchases,
     initializePurchases,
+    getTransactionHistory,
   };
 
   return (

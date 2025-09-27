@@ -14,87 +14,31 @@ import { useAppTheme } from '../../constants/ThemeProvider';
 import { usePremium } from '../../contexts/PremiumContext';
 import { HeaderComponent } from '../../components/HeaderComponent';
 import { Button } from '../../components/Button';
+import { TransactionInfo } from '../../services/purchases';
 
-interface PaymentTransaction {
-  id: string;
-  date: string;
-  amount: string;
-  plan: string;
-  period: string;
-  status: 'completed' | 'pending' | 'failed' | 'refunded';
-  paymentMethod: string;
-  description: string;
-  receiptUrl?: string;
-}
+// Use TransactionInfo from purchases service instead of local interface
+type PaymentTransaction = TransactionInfo;
 
 export default function PaymentHistoryScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const { isPremium } = usePremium();
+  const { isPremium, getTransactionHistory } = usePremium();
 
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Generate mock transaction data
-  const generateMockTransactions = (): PaymentTransaction[] => {
-    const mockTransactions: PaymentTransaction[] = [];
-    const now = new Date();
-
-    // Current subscription payment (most recent)
-    if (isPremium) {
-      mockTransactions.push({
-        id: 'TXN' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        date: now.toISOString(),
-        amount: '$4.99',
-        plan: 'Monthly Premium',
-        period: 'month',
-        status: 'completed',
-        paymentMethod: 'Apple Pay',
-        description: 'Monthly Premium Subscription',
-      });
-    }
-
-    // Generate 3-5 historical transactions
-    const numHistoricalTransactions = Math.floor(Math.random() * 3) + 3;
-    for (let i = 1; i <= numHistoricalTransactions; i++) {
-      const transactionDate = new Date(now.getTime() - (i * 30 * 24 * 60 * 60 * 1000));
-      const plans = ['Monthly Premium', 'Yearly Premium'];
-      const amounts = ['$4.99', '$49.99'];
-      const paymentMethods = ['Apple Pay', 'Google Pay', 'Credit Card ****1234'];
-      const statuses: PaymentTransaction['status'][] = i === numHistoricalTransactions && Math.random() < 0.2 ? ['failed'] : ['completed'];
-
-      const planIndex = Math.floor(Math.random() * plans.length);
-      const plan = plans[planIndex];
-      const amount = amounts[planIndex];
-
-      mockTransactions.push({
-        id: 'TXN' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        date: transactionDate.toISOString(),
-        amount,
-        plan,
-        period: plan.includes('Yearly') ? 'year' : 'month',
-        status: statuses[0],
-        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-        description: `${plan} Subscription`,
-      });
-    }
-
-    return mockTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
-
   const loadTransactions = async () => {
     try {
       setIsLoading(true);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const mockData = generateMockTransactions();
-      setTransactions(mockData);
+      // Get real transaction history from Revenue Cat
+      const transactionData = await getTransactionHistory();
+      setTransactions(transactionData);
     } catch (error) {
       console.error('Failed to load payment history:', error);
       Alert.alert('Error', 'Failed to load payment history. Please try again.');
+      setTransactions([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -198,7 +142,7 @@ export default function PaymentHistoryScreen() {
         onPress={() => {
           Alert.alert(
             'Transaction Details',
-            `Transaction ID: ${transaction.id}\nDate: ${formatDate(transaction.date)} at ${formatTime(transaction.date)}\nAmount: ${transaction.amount}\nStatus: ${getStatusText(transaction.status)}`,
+            `Transaction ID: ${transaction.id}\nDate: ${formatDate(transaction.date)} at ${formatTime(transaction.date)}\nAmount: ${transaction.amountDisplay}\nStatus: ${getStatusText(transaction.status)}`,
             [
               { text: 'Cancel', style: 'cancel' },
               { text: 'View Receipt', onPress: () => handleViewReceipt(transaction) },
@@ -263,7 +207,7 @@ export default function PaymentHistoryScreen() {
               ? theme.colors.status.error
               : theme.colors.theme.text,
           }}>
-            {transaction.amount}
+            {transaction.amountDisplay}
           </Text>
           <Text style={{
             fontSize: theme.typography.fontSize.bodyMedium,
@@ -365,7 +309,7 @@ export default function PaymentHistoryScreen() {
       paddingHorizontal: theme.spacing['2xl'],
     }}>
       <MaterialCommunityIcons
-        name="receipt-outline"
+        name={'receipt-outline' as any}
         size={80}
         color={theme.colors.theme.textTertiary}
         style={{ marginBottom: theme.spacing.lg }}
@@ -504,12 +448,20 @@ export default function PaymentHistoryScreen() {
                 fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.wizard.primary,
               }}>
-                ${transactions.reduce((total, t) => {
-                  if (t.status === 'completed') {
-                    return total + parseFloat(t.amount.replace('$', ''));
+                {(() => {
+                  const currency = transactions.find(t => t.currencyCode)?.currencyCode || 'USD';
+                  const total = transactions.reduce((sum, t) => {
+                    if (t.status === 'completed' && typeof t.amountValue === 'number') {
+                      return sum + (t.amountValue || 0);
+                    }
+                    return sum;
+                  }, 0);
+                  try {
+                    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(total);
+                  } catch {
+                    return `$${total.toFixed(2)}`;
                   }
-                  return total;
-                }, 0).toFixed(2)}
+                })()}
               </Text>
             </View>
           </View>
