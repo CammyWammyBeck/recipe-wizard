@@ -14,6 +14,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'small' | 'medium' | 'large';
 
+import type { StyleProp } from 'react-native';
+
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -22,7 +24,7 @@ interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   rightIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
   loading?: boolean;
   fullWidth?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   textStyle?: TextStyle;
 }
 
@@ -137,9 +139,9 @@ export function Button({
     }
   };
   
-  const buttonStyle = [
+  const buttonStyle: StyleProp<ViewStyle> = [
     getVariantStyle(),
-    fullWidth && { width: '100%' },
+    fullWidth && ({ width: '100%' } as ViewStyle),
     style,
   ];
   

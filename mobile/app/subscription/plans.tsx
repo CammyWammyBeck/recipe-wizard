@@ -14,6 +14,7 @@ import { usePremium } from '../../contexts/PremiumContext';
 import { HeaderComponent } from '../../components/HeaderComponent';
 import { Button } from '../../components/Button';
 import { PACKAGE_TYPE } from 'react-native-purchases';
+import { purchasesService } from '../../services/purchases';
 
 interface PlanFeature {
   icon: string;
@@ -169,10 +170,21 @@ export default function SubscriptionPlansScreen() {
     try {
       setIsLoading(true);
 
-      const success = await purchasePackage(packageToPurchase);
+      let success = false;
+      // If already premium and switching products, use upgrade flow on Android
+      if (isPremium && purchaseInfo?.productId && purchaseInfo.productId !== offeringPackage.product.identifier) {
+        try {
+          await purchasesService.purchasePackageWithUpgrade(packageToPurchase, purchaseInfo.productId);
+          await refreshPurchases();
+          success = true;
+        } catch (e) {
+          throw e;
+        }
+      } else {
+        success = await purchasePackage(packageToPurchase);
+      }
 
       if (success) {
-        // Navigate to success screen
         router.push('/subscription/payment-success');
       } else {
         Alert.alert('Purchase Failed', 'The purchase could not be completed. Please try again.');

@@ -10,7 +10,6 @@ import { InstructionStep } from './InstructionStep';
 import { ExpandableCard } from './ExpandableCard';
 
 export interface Recipe {
-  id: string;
   title: string;
   description?: string;
   instructions: string[];
@@ -114,7 +113,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
               marginBottom: theme.spacing.lg,
             }}
           >
-            {(recipe.servings ?? 0) > 0 && (
+            {(() => { const servings = recipe.servings ?? 0; return servings > 0; })() && (
               <View
                 style={{
                   flexDirection: 'row',
@@ -138,7 +137,7 @@ export function RecipeSection({ recipe, style }: RecipeSectionProps) {
                     fontFamily: theme.typography.fontFamily.body,
                   }}
                 >
-                  {recipe.servings} serving{recipe.servings > 1 ? 's' : ''}
+                  {recipe.servings ?? 0} serving{(recipe.servings ?? 0) > 1 ? 's' : ''}
                 </Text>
               </View>
             )}

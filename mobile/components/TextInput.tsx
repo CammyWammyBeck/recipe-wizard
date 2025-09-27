@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, forwardRef } from 'react';
 import {
   TextInput as RNTextInput,
   TextInputProps as RNTextInputProps,
@@ -26,7 +26,7 @@ interface TextInputProps extends RNTextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export function TextInput({
+export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInputInternal({
   label,
   helperText,
   errorText,
@@ -40,7 +40,7 @@ export function TextInput({
   onFocus,
   onBlur,
   ...props
-}: TextInputProps) {
+}, ref) {
   const { theme, isDark } = useAppTheme();
   const [isFocused, setIsFocused] = useState(false);
   
@@ -200,6 +200,7 @@ export function TextInput({
           placeholderTextColor={placeholderColor}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          ref={ref}
           {...props}
         />
         
@@ -232,4 +233,4 @@ export function TextInput({
       )}
     </View>
   );
-}
+});

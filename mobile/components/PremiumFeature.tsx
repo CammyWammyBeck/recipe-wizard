@@ -170,6 +170,7 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   const sizeConfig = {
     small: {
       titleSize: theme.typography.fontSize.titleMedium,
+      descriptionSize: theme.typography.fontSize.bodyMedium,
       showDescription: false,
       showBadge: true,
       badgePosition: 'floating' as const,

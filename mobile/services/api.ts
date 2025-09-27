@@ -51,7 +51,8 @@ class APIService {
     
     // Merge with provided headers
     if (options.headers) {
-      headers = { ...headers, ...options.headers };
+      const provided = options.headers as any;
+      headers = { ...headers, ...(provided || {}) } as Record<string, string>;
     }
 
     let response = await fetch(url, {
