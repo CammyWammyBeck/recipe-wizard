@@ -8,70 +8,80 @@
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
         h1, h2 { color: #6B46C1; }
         .last-updated { color: #666; font-size: 14px; }
+        a { color: #6B46C1; }
     </style>
 </head>
 <body>
     <h1>Privacy Policy for Recipe Wizard</h1>
-    <p class="last-updated">Last updated: September 26, 2025</p>
+    <p class="last-updated">Last updated: April 21, 2026</p>
+
+    <p>This Privacy Policy describes how Recipe Wizard ("we," "us," or "the app") handles information when you use the Recipe Wizard mobile application. We keep this policy short and specific: it only describes what the app actually does.</p>
 
     <h2>1. Information We Collect</h2>
-    <p>Recipe Wizard collects the following information to provide and improve our service:</p>
+    <p>Recipe Wizard collects only the information needed to run the service:</p>
     <ul>
-        <li><strong>Account Information:</strong> Email address, name, and password when you create an account</li>
-        <li><strong>Recipe Data:</strong> Recipe prompts, generated recipes, ingredient lists, and cooking preferences</li>
-        <li><strong>Usage Data:</strong> App usage patterns, feature interactions, and performance data</li>
-        <li><strong>Device Information:</strong> Device type, operating system, and app version for technical support</li>
+        <li><strong>Account information:</strong> Your name, email address, and password when you create an account. Passwords are stored only as a salted hash; we never see or retain the plaintext.</li>
+        <li><strong>Recipe content you create:</strong> The prompts you submit, the recipes generated for you, your saved recipes, your shopping list, and your cooking preferences (servings, difficulty, dietary restrictions).</li>
+        <li><strong>Subscription information:</strong> If you purchase Recipe Wizard Premium, the app store (Apple or Google) processes the payment and RevenueCat records whether your subscription is active. We do not see or store your payment card details.</li>
+        <li><strong>Basic device metadata via RevenueCat:</strong> When you interact with the subscription system, RevenueCat collects standard device information (device model, OS version, app version, anonymous install identifier) in order to deliver entitlements correctly.</li>
     </ul>
+    <p>The app does not collect location data, contacts, photos, microphone or camera data, or analytics/usage telemetry. No third-party analytics SDK is embedded.</p>
 
     <h2>2. How We Use Your Information</h2>
-    <p>We use your information to:</p>
     <ul>
-        <li>Generate personalized recipes based on your preferences</li>
-        <li>Maintain your account and provide customer support</li>
-        <li>Process subscription payments through Apple App Store or Google Play</li>
-        <li>Improve our AI recipe generation algorithms</li>
-        <li>Send important service updates and notifications</li>
+        <li>To generate recipes based on the prompts you submit.</li>
+        <li>To maintain your account, preferences, shopping list, and recipe history so they persist across sessions and devices.</li>
+        <li>To verify your Premium subscription status and deliver the features it unlocks.</li>
+        <li>To respond to you if you contact support or privacy at <strong>privacy@cameronbeck.dev</strong>.</li>
     </ul>
+    <p>We do not use your recipe prompts or generated content to train any AI model, and we do not sell your data to anyone.</p>
 
-    <h2>3. Information Sharing</h2>
-    <p>We do not sell, trade, or rent your personal information. We may share information with:</p>
+    <h2>3. Third-Party Services</h2>
+    <p>We share the minimum data necessary with the following processors, each acting on our behalf:</p>
     <ul>
-        <li><strong>Service Providers:</strong> RevenueCat for subscription management, cloud hosting providers</li>
-        <li><strong>Legal Requirements:</strong> When required by law or to protect our rights and users</li>
+        <li><strong>OpenAI:</strong> Each recipe prompt you submit is sent to the OpenAI API so a large language model can generate the recipe. OpenAI's API terms state that data submitted via the API is not used to train their models. Your prompt is sent without your name or email attached.</li>
+        <li><strong>RevenueCat:</strong> Manages subscription state, entitlements, and purchase restoration.</li>
+        <li><strong>Hosting and database providers (currently Heroku):</strong> Host our backend API and store your account, recipes, and shopping list data.</li>
+        <li><strong>Apple App Store and Google Play:</strong> Process subscription payments. Their own privacy policies govern that data.</li>
     </ul>
+    <p>We may also disclose information when required by law or to protect the rights and safety of our users.</p>
 
     <h2>4. Data Security</h2>
-    <p>We implement appropriate security measures to protect your data, including:</p>
     <ul>
-        <li>Encrypted data transmission (HTTPS/TLS)</li>
-        <li>Secure authentication and password protection</li>
-        <li>Regular security updates and monitoring</li>
+        <li>All traffic between the app and our backend is encrypted in transit (HTTPS/TLS).</li>
+        <li>Passwords are stored only as salted hashes.</li>
+        <li>Access tokens are stored on your device using the operating system's secure storage.</li>
     </ul>
 
-    <h2>5. Your Rights</h2>
-    <p>You have the right to:</p>
-    <ul>
-        <li>Access, update, or delete your account information</li>
-        <li>Export your recipe data</li>
-        <li>Opt out of non-essential communications</li>
-        <li>Request account deletion</li>
-    </ul>
+    <h2>5. Data Retention</h2>
+    <p>We retain your account and recipe data for as long as your account exists. Server logs that no longer contain personal identifiers may be retained for up to 90 days for security and diagnostic purposes. Backups are rotated on a rolling basis and any remaining copy of deleted data is removed within 35 days.</p>
 
-    <h2>6. Subscription Management</h2>
-    <p>Premium subscriptions are processed through Apple App Store or Google Play. Billing, cancellation, and refunds are managed through your respective app store account.</p>
+    <h2>6. Your Rights</h2>
+    <p>You can:</p>
+    <ul>
+        <li>Update your name, email, or password from inside the app.</li>
+        <li><strong>Request permanent deletion of your account and all associated data</strong> by following the instructions at <a href="delete-account.html">Delete Your Account</a>. Deletion is completed within 30 days of request.</li>
+        <li>Email <strong>privacy@cameronbeck.dev</strong> with any other privacy question or request.</li>
+    </ul>
 
     <h2>7. Children's Privacy</h2>
-    <p>Recipe Wizard is not intended for children under 13. We do not knowingly collect personal information from children under 13.</p>
+    <p>Recipe Wizard is not directed at children under 13 and we do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, contact us at privacy@cameronbeck.dev and we will delete it.</p>
 
-    <h2>8. Changes to Privacy Policy</h2>
-    <p>We may update this privacy policy occasionally. We will notify users of significant changes through the app or email.</p>
+    <h2>8. Subscription Management</h2>
+    <p>Recipe Wizard Premium is billed through your Apple or Google account. You can view, change, or cancel your subscription in your device's subscription settings. Deleting your Recipe Wizard account does not automatically cancel your subscription; please cancel it first.</p>
 
-    <h2>9. Contact Us</h2>
-    <p>If you have questions about this privacy policy, please contact us at:</p>
-    <p><strong>Email:</strong> privacy@cameronbeck.dev</p>
-    <p><strong>Developer:</strong> Cameron Beck</p>
+    <h2>9. International Users</h2>
+    <p>Recipe Wizard is operated from Australia. If you use the app from another country, you consent to your information being processed in Australia and in any country where our processors (listed in section 3) operate.</p>
+
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this policy from time to time. The "Last updated" date at the top of this page will change whenever we do. Material changes will be highlighted in the app.</p>
+
+    <h2>11. Contact</h2>
+    <p>For any privacy question or request:</p>
+    <p><strong>Email:</strong> privacy@cameronbeck.dev<br>
+    <strong>Developer:</strong> Cameron Beck</p>
 
     <hr>
-    <p><small>This privacy policy is effective as of September 26, 2025, and governs the use of Recipe Wizard mobile application.</small></p>
+    <p><small>This privacy policy is effective as of April 21, 2026, and governs the use of the Recipe Wizard mobile application.</small></p>
 </body>
 </html>
