@@ -1,292 +1,185 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-**Recipe Wizard** is a cross-platform mobile application that generates personalized recipes and grocery lists from simple user prompts using a local LLM. Users input casual requests like "creamy chicken pasta with sundried tomatoes" and receive structured grocery lists (with checkboxes) and detailed recipes.
-
-## Current Project Status
-
-This is a **monorepo structure** with separate mobile and backend folders. The **mobile app core foundation is complete** with a fully functional user interface, navigation flow, and API-ready architecture. The backend directory structure is created and ready for LLM integration.
-
-## Tech Stack
-
-### Current Implementation (Mobile App) ✅ **COMPLETED**
-- **React Native** with **Expo 53** (cross-platform iOS/Android)
-- **Expo Router 5** for file-based navigation with complete user flow
-- **TypeScript** for type safety with comprehensive API types
-- **Custom theme system** with light/dark mode support and AsyncStorage persistence
-- **Material Community Icons** for consistent iconography
-- **Performance-optimized components** with memoization and proper lifecycle management
-- **API service layer** ready for backend integration
-
-### Backend Implementation (In Progress)
-- **Python FastAPI** backend (basic structure created)
-- **PostgreSQL** database for user data persistence
-- **Local LLM** integration via Ollama Python client
-- **JWT** authentication system
-- **SQLAlchemy** ORM with Alembic migrations
-
-## Development Commands
-
-### Mobile App (React Native/Expo)
-```bash
-# Navigate to mobile directory
-cd mobile
-
-# Install dependencies
-npm install
-
-# Start development server
-npm start                           # Expo development server
-npm run android                     # Build/run Android
-npm run ios                         # Build/run iOS
-npm run web                         # Build/run Web
-
-# Development tools
-npx expo start --clear-cache        # Clear Expo cache
-npx expo install --fix              # Fix dependency versions
-npx tsc --noEmit                    # Type checking without build
-```
-
-### Backend API (Python FastAPI)
-```bash
-# Navigate to backend directory
-cd backend
-
-# Setup Python environment
-python -m venv venv
-source venv/bin/activate            # Linux/Mac
-# venv\Scripts\activate             # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Database migrations (when implemented)
-alembic upgrade head
-alembic revision --autogenerate -m "Description"
-```
-
-## Project Structure
-
-```
-RecipeWizard/
-├── mobile/                        # React Native Expo app ✅ COMPLETED
-│   ├── app/                      # Expo Router pages
-│   │   ├── _layout.tsx           # Root navigation layout
-│   │   ├── index.tsx             # Welcome screen
-│   │   ├── prompt.tsx            # Recipe prompt input screen
-│   │   ├── recipe-result.tsx     # Recipe result with ingredients & instructions
-│   │   └── auth/                 # Authentication screens
-│   │       ├── signin.tsx        # Sign in screen
-│   │       └── signup.tsx        # Sign up screen
-│   ├── assets/                   # Static assets (icons, images)
-│   ├── components/               # Reusable UI components ✅ COMPLETED
-│   │   ├── Button.tsx            # Multi-variant button component
-│   │   ├── TextInput.tsx         # Performance-optimized input
-│   │   ├── ExpandableCard.tsx    # Collapsible card sections
-│   │   ├── CheckboxItem.tsx      # Grocery list checkboxes
-│   │   ├── InstructionStep.tsx   # Recipe instruction steps
-│   │   ├── IngredientsSection.tsx # Categorized grocery list
-│   │   └── RecipeSection.tsx     # Recipe display with metadata
-│   ├── constants/                # App constants and config ✅ COMPLETED
-│   │   ├── theme.ts              # Theme system constants
-│   │   └── ThemeProvider.tsx     # Theme context with persistence
-│   ├── types/                    # TypeScript type definitions ✅ COMPLETED
-│   │   └── api.ts                # API response and request types
-│   ├── services/                 # API client functions ✅ COMPLETED
-│   │   └── api.ts                # Complete API service layer
-│   ├── package.json              # Mobile app dependencies
-│   ├── app.json                  # Expo configuration
-│   ├── tsconfig.json             # TypeScript configuration
-│   └── tailwind.config.js        # TailwindCSS configuration
-├── backend/                       # Python FastAPI server
-│   ├── app/                      # FastAPI application
-│   │   ├── __init__.py
-│   │   ├── main.py               # FastAPI entry point
-│   │   ├── models/               # SQLAlchemy database models
-│   │   ├── schemas/              # Pydantic request/response schemas
-│   │   ├── routers/              # API endpoint definitions
-│   │   ├── services/             # Business logic layer
-│   │   └── utils/                # Utility functions
-│   ├── alembic/                  # Database migration management
-│   ├── requirements.txt          # Python dependencies
-│   └── .env.example             # Environment variables template
-├── shared/                        # Shared resources between frontend/backend
-│   └── types.ts                  # Common TypeScript interfaces (to be created)
-├── design/                        # Design mockups and assets
-│   └── examples/                 # HTML design examples
-├── docs/                          # Project documentation (to be created)
-├── CLAUDE.md                      # Claude Code instructions
-└── README.md                      # Project documentation
-```
-
-## Core Architecture ✅ **IMPLEMENTED**
-
-### User Flow ✅ **COMPLETE**
-1. **Welcome Screen**: Magical onboarding with theme toggle and "Get Started" button
-2. **Authentication**: Sign in/sign up screens with consistent wizard branding
-3. **Prompt Entry**: Enhanced input screen with suggestions and character counter
-4. **Recipe Generation**: Loading state with 2-second simulation (ready for LLM integration)
-5. **Recipe Display**: Expandable sections showing grocery list + recipe instructions
-6. **Interactive Features**: Checkable grocery items organized by store categories
-
-### Current Navigation Structure ✅ **IMPLEMENTED**
-```
-app/
-├── _layout.tsx            # Root stack navigation
-├── index.tsx              # Welcome screen
-├── prompt.tsx             # Recipe prompt input
-├── recipe-result.tsx      # Recipe result display
-└── auth/                  # Authentication flow
-    ├── signin.tsx         # Sign in screen  
-    └── signup.tsx         # Sign up screen
-```
-
-### Navigation Features ✅ **COMPLETE**
-- **Custom headers** with recipe titles instead of route names
-- **Navigation parameters** for passing data between screens
-- **Back navigation** with proper state management
-- **Theme consistency** across all screens
-- **Safe area handling** for mobile devices
-
-## Configuration
-
-### Expo Configuration (app.json)
-- **Name**: "RecipeWizard"
-- **Slug**: "RecipeWizard"
-- **Scheme**: "recipe-wizard"
-- **New Architecture**: Enabled (React Native New Architecture)
-- **Plugins**: expo-router, expo-secure-store
-
-### Environment Variables
-- `EXPO_PUBLIC_API_BASE_URL` - Backend API endpoint (defaults to http://localhost:8000)
-- `LLM_SERVICE_URL` - Local LLM service endpoint (for backend)
-
-## Development Workflow
-
-### Current Development Status ✅ **MOBILE APP COMPLETE**
-1. ✅ **Core UI Components**: Complete component library with theme system
-2. ✅ **Navigation Structure**: Full authentication and recipe generation flow
-3. ✅ **Mock Data Integration**: Production-ready mock system for development
-4. ✅ **State Management**: Theme persistence and ingredient checkbox states
-5. ✅ **API Architecture**: Complete service layer ready for backend integration
-
-### Next Development Phases (Backend Focus)
-1. **LLM Backend**: Implement FastAPI backend with Ollama integration
-2. **Database Setup**: PostgreSQL schemas for users, recipes, and conversations  
-3. **Authentication API**: JWT endpoints matching frontend auth screens
-4. **Recipe Generation API**: LLM prompt processing and structured response parsing
-5. **Tab Navigation**: Add History, Saved Recipes, and Settings screens
-
-### Testing
-- Manual testing on Expo development client
-- Test on both iOS and Android platforms
-- Web platform testing for broader accessibility
-
-## Key Features Status
-
-### Phase 1: Core UI & Navigation ✅ **COMPLETED**
-- ✅ Complete navigation structure with authentication flow
-- ✅ Recipe prompt input interface with suggestions and validation
-- ✅ Advanced grocery list and recipe display components
-- ✅ Loading states, error handling, and performance optimization
-- ✅ Theme system with light/dark mode support
-- ✅ Expandable card sections with smooth animations
-
-### Phase 2: Authentication & User Management 🔄 **UI READY**
-- ✅ User registration and login screens with consistent branding
-- 🔄 JWT token management with Expo Secure Store (backend needed)
-- 🔄 Protected route navigation (backend integration needed)
-
-### Phase 3: Recipe Generation Core ✅ **ARCHITECTURE READY**
-- 🔄 Backend API integration (service layer implemented, backend needed)
-- 🔄 LLM prompt processing (mock data system ready for replacement)
-- ✅ Grocery list with checkable items organized by categories
-- ✅ Recipe instruction display with metadata and tips
-- ✅ Response parsing and formatting (TypeScript types implemented)
-
-### Phase 4: Data Persistence 📋 **PLANNED**
-- 📋 Conversation history storage (API endpoints defined)
-- 📋 Recipe saving/favoriting functionality (UI components ready)
-- 📋 User preferences and settings (theme persistence implemented)
-- 📋 Cross-device synchronization
-
-## Styling Guidelines
-
-### NativeWind + React Native Paper Integration
-- Use **NativeWind classes** for layout and spacing: `flex-1`, `p-4`, `mb-2`
-- Use **React Native Paper** components for interactive elements: `Button`, `TextInput`, `Card`
-- Follow **Material Design 3** principles through React Native Paper theming
-- Ensure accessibility with proper `accessibilityLabel` and `accessibilityHint`
-
-### Color Scheme
-- Primary: Material Design default (customizable via theme)
-- Background: Clean whites and light grays
-- Text: High contrast for readability
-
-## Backend Integration (Future)
-
-### API Endpoints (Planned)
-```typescript
-// Authentication
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/refresh
-
-// Recipe Generation
-POST /api/recipes/generate
-GET  /api/recipes/history
-POST /api/recipes/save
-DELETE /api/recipes/{id}
-
-// User Management
-GET  /api/users/profile
-PUT  /api/users/settings
-```
-
-### Data Models (Planned)
-- **User**: Authentication and profile data
-- **Conversation**: Recipe generation history
-- **SavedRecipe**: User's favorite recipes
-- **UserSettings**: Preferences and dietary restrictions
-
-## Testing and Debugging
-
-### Development Testing
-- Use **Expo Development Build** for testing native features
-- Test on multiple screen sizes and orientations
-- Validate accessibility features with screen readers
-
-### Error Handling
-- Network connectivity issues
-- LLM service unavailability
-- Malformed API responses
-- User authentication errors
-
-## Deployment (Future)
-
-### Mobile App Distribution
-- **iOS**: App Store distribution via Expo Application Services (EAS)
-- **Android**: Google Play Store via EAS Build
-- **Development**: Expo Development Client for internal testing
-
-### Backend Deployment
-- **API Server**: Railway, Heroku, or dedicated VPS
-- **Database**: PostgreSQL on Heroku, Railway, or managed service
-- **LLM Service**: Local deployment with Ollama
-
-## Success Metrics
-
-- **Primary**: Users can successfully generate and save recipes from natural language prompts
-- **Secondary**: Grocery lists are accurately categorized and useful for shopping
-- **Tertiary**: User preferences improve recipe relevance over time
-- **Technical**: App maintains 60fps performance and <3s recipe generation time
+Guidance for Claude Code when working on this repository. Keep this file accurate — update it whenever the project status changes meaningfully.
 
 ---
 
-*This document should be updated as the project evolves and requirements become clearer through development and user feedback.*
+## What Recipe Wizard is
+
+A cross-platform mobile app (React Native / Expo) that turns a natural-language prompt like "creamy chicken pasta with sundried tomatoes" into a structured recipe with ingredients, instructions, and an organised grocery list. Recipes are generated by OpenAI via a FastAPI backend. Paid tier is managed through RevenueCat.
+
+**This is a solo project by Cameron Beck (@cameronbeck-dev on GitHub).**
+
+---
+
+## Current phase (as of 2026-04-21): store submission
+
+The app is feature-complete and functional. The current work is getting it onto Google Play and the Apple App Store.
+
+### What is live / done
+
+- Full mobile app: welcome → auth → tabs (prompt, history, shopping-list, profile) → recipe result → subscription flows
+- FastAPI backend deployed to Heroku with Postgres + Redis rate limiting
+- OpenAI integration for recipe generation, modification, and ideas
+- RevenueCat integration with mock-mode fallback for Expo Go
+- Shopping list with smart ingredient consolidation across recipes
+- User preferences, dietary restrictions, grocery category reordering
+- Light/dark theme with persistence
+- JWT auth with refresh + credential-based re-auth fallback
+- Account deletion: in-app button (Profile → Account → Delete Account) *and* public web form at `docs/delete-account.html`
+- Privacy policy published at `docs/privacy-policy.html`, accurate to actual data handling
+
+### What is left before submission
+
+1. **Screenshots** for Google Play and App Store (required device sizes listed in each console).
+2. **Store listing copy**: short description, full description, promo text.
+3. **Content rating questionnaire** in both consoles.
+4. **Apple Developer account** ($99/yr) — must be enrolled.
+5. **Google Play Developer account** ($25 one-time).
+6. **Credentials for `eas submit`**:
+   - Apple: App Store Connect API key (.p8), key ID, issuer ID.
+   - Google: service account JSON key with Release Manager permissions in Play Console.
+7. **EAS build**: requires `! eas login` in an interactive session, then `eas build --profile production --platform all`.
+8. **App records** created in both consoles (manual web-UI step).
+9. **Review notes + demo account** for reviewers to get past auth.
+10. **(Optional, recommended)**: wire up Sentry for crash reporting before the first public build.
+
+---
+
+## Key external identifiers and URLs
+
+| Thing | Value |
+|---|---|
+| Developer domain | `cameronbeck.dev` (registered via Cloudflare) |
+| Contact email | `privacy@cameronbeck.dev` (Cloudflare Email Routing → maintainer's Gmail) |
+| GitHub repo | `https://github.com/cameronbeck-dev/recipe-wizard` |
+| GitHub Pages base | `https://cameronbeck-dev.github.io/recipe-wizard/` |
+| Privacy policy URL | `https://cameronbeck-dev.github.io/recipe-wizard/privacy-policy.html` |
+| Account-deletion URL | `https://cameronbeck-dev.github.io/recipe-wizard/delete-account.html` |
+| Android package | `com.cammybeck.recipewizard` |
+| iOS bundle ID | `com.cammybeck.recipewizard` |
+| EAS project ID | `13d76684-3800-406a-a071-e2c02ca60824` |
+| Current `versionCode` | 15 (bumped for upcoming build; not yet shipped) |
+| Backend | FastAPI on Heroku (see `heroku.yml`) |
+
+---
+
+## Tech stack
+
+**Mobile (`mobile/`)**
+- Expo 53 + React Native 0.79 + Expo Router 5, TypeScript
+- React Native Paper + a custom theme in `mobile/constants/`
+- RevenueCat via `react-native-purchases` 9.5 (mock mode when running in Expo Go)
+- Auth tokens in `expo-secure-store`, preferences in AsyncStorage
+- TypeScript strict; `./node_modules/.bin/tsc --noEmit` passes cleanly
+
+**Backend (`backend/`)**
+- FastAPI + SQLAlchemy + Alembic
+- Postgres (managed by Heroku), Redis for `fastapi-limiter`
+- OpenAI API via `services/openai_service.py` (no `user` parameter passed — prompts are sent without user identifiers)
+- JWT auth, CORS hardening, security-headers middleware, structured logging
+
+**Docs site (`docs/`)**
+- Static HTML served by GitHub Pages from the `docs/` folder on `main`.
+- Contains `privacy-policy.html` and `delete-account.html`.
+
+---
+
+## Development commands
+
+```bash
+# Mobile
+cd mobile
+npm install                          # first time only
+npm start                            # Expo dev server
+./node_modules/.bin/tsc --noEmit     # type check (passes clean)
+
+# Backend
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# Build + submit
+# EAS login is interactive — inside Claude Code, prefix with `!` so the
+# command runs in the user's shell and stdout lands in the conversation.
+eas login
+eas build --profile production --platform all
+eas submit --profile production --platform all
+```
+
+---
+
+## Project layout (condensed)
+
+```
+recipe-wizard/
+├── CLAUDE.md                 # this file
+├── README.md                 # user-facing; may contain stale claims
+├── docs/                     # served as cameronbeck-dev.github.io/recipe-wizard/
+│   ├── privacy-policy.html
+│   └── delete-account.html
+├── mobile/
+│   ├── app/                  # expo-router routes
+│   │   ├── (tabs)/           # prompt, history, shopping-list, profile
+│   │   ├── auth/             # signin, signup
+│   │   ├── subscription/     # benefits, plans, payment*, manage, payment-history
+│   │   ├── recipe-result.tsx
+│   │   └── _layout.tsx
+│   ├── components/           # Button, TextInput, ExpandableCard, PremiumFeature, etc.
+│   ├── contexts/             # AuthContext, PremiumContext
+│   ├── services/             # api, auth, purchases, preferences, savedRecipes, config
+│   ├── constants/            # theme + ThemeProvider
+│   ├── types/                # api types
+│   ├── app.json              # Expo config (privacy URL, versionCode live here)
+│   └── eas.json              # `submit` blocks for both platforms are empty — need credentials
+├── backend/
+│   ├── app/
+│   │   ├── main.py           # CORS, middleware, health endpoints
+│   │   ├── routers/          # auth, users, recipes, shopping_list, jobs
+│   │   ├── services/         # openai_service, llm_service, shopping_list_service
+│   │   ├── models/           # SQLAlchemy
+│   │   ├── schemas/          # Pydantic
+│   │   └── middleware/       # security, logging, CORS
+│   └── alembic/              # migrations
+├── DEPLOYMENT_CHECKLIST.md           # historical — shopping-list era
+├── PREMIUM_IMPLEMENTATION_PLAN.md    # historical — mostly completed
+└── SHOPPING_LIST_IMPLEMENTATION.md   # historical — feature shipped
+```
+
+The three historical `*_IMPLEMENTATION*.md` / `*_CHECKLIST.md` files at repo root describe completed work. Do not treat them as current plans.
+
+---
+
+## Gotchas and things not to do
+
+- **Don't reintroduce any "fail open" premium check.** `checkPremiumFeature` returns `false` while `isLoading` is `true`, and `PremiumFeature` renders `null` during loading. This is intentional — a brief fail-open on startup was a real revenue leak. See commit `312936f`.
+- **Don't read `EXPO_PUBLIC_IS_PREMIUM` outside a `__DEV__` gate.** It is a dev override only; if it leaks into a production build, it grants premium to real users and persists to AsyncStorage.
+- **Don't pass a `user` parameter to OpenAI's `chat.completions.create`.** The privacy policy claims no user identifier accompanies prompts. If we ever need to, update the privacy policy first.
+- **No analytics SDK is installed** (no Firebase, Mixpanel, Sentry). The privacy policy reflects this. If you add one, update the privacy policy *and* the Play Console Data Safety form.
+- **The backend's `DELETE /api/users/account` cascade-deletes** conversations, saved_recipes, created_recipes, recipe_jobs, and shopping_lists. Don't add new user-linked tables without a matching `cascade="all, delete-orphan"` on `User.relationships`.
+- **The mobile `services/auth.ts` re-stores the plaintext password in SecureStore** for silent re-auth after JWT refresh failure. This is a deliberate (though debatable) UX choice; discuss before changing.
+- **The backend LLM endpoints sometimes retry internally up to 3 times.** The mobile prompt screen reflects this with a 3-segment progress bar animation driven by `retry_count` in the job status.
+
+---
+
+## Session history (recent)
+
+### 2026-04-21 — shipping prep
+- Full QA sweep. Fixed three mobile issues: test-fail backdoor (`prompt.tsx`), premium env-var leak (`PremiumContext.tsx`), fail-open premium check during loading (`PremiumContext.tsx` + `PremiumFeature.tsx`).
+- Registered `cameronbeck.dev`; set up Cloudflare Email Routing for `privacy@`.
+- Renamed GitHub user `cammywammybeck` → `cameronbeck-dev`. Updated `app.json`, git remote.
+- Wrote `docs/delete-account.html` for public account-deletion requests.
+- Rewrote `docs/privacy-policy.html` for accuracy (removed claims about analytics, AI training, data export, notifications; added OpenAI as a processor; added retention and jurisdiction sections).
+- Added in-app "Delete Account" flow in Profile (two-step destructive confirmation).
+- Bumped Android `versionCode` to 15.
+- Commit range this session: `792ff9e..79065b4`.
+
+---
+
+## Styling / conventions
+
+- Use the custom theme from `constants/ThemeProvider` (`theme.colors`, `theme.spacing`, `theme.typography`). The app does not use NativeWind classes extensively — prefer inline `style` objects driven by the theme.
+- Icons: `@expo/vector-icons` MaterialCommunityIcons.
+- Error state in the prompt screen uses orange (`#f59e0b`), not red — matches the "tap to retry" affordance.
+- Auth screens handle their own back-nav; headers are hidden in the root stack.
