@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "privacy": "https://cammywammybeck.github.io/recipe-wizard/privacy-policy.html",
+    "privacy": "https://cameronbeck-dev.github.io/recipe-wizard/privacy-policy.html",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -25,7 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.cammybeck.recipewizard",
-      "versionCode": 14
+      "versionCode": 15
     },
     "web": {
       "bundler": "metro",
