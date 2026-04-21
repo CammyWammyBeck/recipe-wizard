@@ -173,6 +173,36 @@ export class AuthService {
   }
 
   /**
+   * Permanently delete the current user's account and all associated data.
+   * The backend cascade-deletes recipes, shopping lists, saved items, and jobs.
+   * Local tokens are cleared on success regardless of server response.
+   */
+  static async deleteAccount(): Promise<void> {
+    const token = await this.getStoredToken();
+    if (!token) {
+      throw new Error('You must be signed in to delete your account.');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Account deletion failed' }));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+    } finally {
+      // Always clear local credentials so the app returns to a signed-out
+      // state even if the server response was lost mid-flight.
+      await this.clearTokens();
+    }
+  }
+
+  /**
    * Store authentication tokens securely
    */
   static async storeTokens(tokens: AuthTokens): Promise<void> {

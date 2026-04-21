@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
 
@@ -117,6 +118,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      setIsLoading(true);
+      await AuthService.deleteAccount();
+      setUser(null);
+    } catch (error) {
+      console.error('❌ Account deletion failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const refreshAuth = async () => {
     try {
       const refreshResult = await AuthService.refreshToken();
@@ -145,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
+    deleteAccount,
     refreshAuth,
   };
 

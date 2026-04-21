@@ -54,7 +54,7 @@ const COMMON_ALLERGENS = [
 export default function ProfileScreen() {
   const { theme, themeMode, setThemeMode, isDark } = useAppTheme();
   const router = useRouter();
-  const { logout, user } = useAuth();
+  const { logout, deleteAccount, user } = useAuth();
   const { isPremium, isLoading: premiumLoading, setPremiumStatus } = usePremium();
   
   // Refs for clearing TextInputs
@@ -69,6 +69,7 @@ export default function ProfileScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -143,6 +144,48 @@ export default function ProfileScreen() {
             }
           }
         }
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account?',
+      'This will permanently delete your account, all your saved recipes, your shopping list, preferences, and recipe history. This cannot be undone.\n\nIf you have an active subscription, cancel it in your device Subscription settings before deleting, otherwise you will continue to be billed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Last chance. Your account and all associated data will be deleted immediately.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, delete my account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      setDeletingAccount(true);
+                      await deleteAccount();
+                      router.replace('/auth/signin');
+                    } catch (error) {
+                      console.error('Delete account error:', error);
+                      Alert.alert(
+                        'Deletion failed',
+                        error instanceof Error ? error.message : 'Could not delete your account. Please try again or email privacy@cameronbeck.dev.'
+                      );
+                    } finally {
+                      setDeletingAccount(false);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
       ]
     );
   };
@@ -1163,7 +1206,7 @@ export default function ProfileScreen() {
               <Button
                 onPress={handleSignOut}
                 variant="outline"
-                disabled={signingOut}
+                disabled={signingOut || deletingAccount}
                 loading={signingOut}
                 leftIcon="logout"
                 style={{
@@ -1175,6 +1218,44 @@ export default function ProfileScreen() {
               >
                 {signingOut ? "Signing Out..." : "Sign Out"}
               </Button>
+
+              {user && (
+                <View style={{ marginTop: theme.spacing['2xl'] }}>
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: theme.colors.theme.border,
+                      marginBottom: theme.spacing.lg,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: theme.typography.fontSize.bodySmall,
+                      color: theme.colors.theme.textTertiary,
+                      marginBottom: theme.spacing.md,
+                      lineHeight: 18,
+                    }}
+                  >
+                    Danger zone. Deleting your account permanently removes your recipes, shopping list, preferences and history. This cannot be undone.
+                  </Text>
+                  <Button
+                    onPress={handleDeleteAccount}
+                    variant="outline"
+                    disabled={signingOut || deletingAccount}
+                    loading={deletingAccount}
+                    leftIcon="delete-forever"
+                    style={{
+                      borderColor: theme.colors.status.error,
+                      backgroundColor: theme.colors.status.error + '10',
+                    }}
+                    textStyle={{
+                      color: theme.colors.status.error,
+                    }}
+                  >
+                    {deletingAccount ? 'Deleting account...' : 'Delete Account'}
+                  </Button>
+                </View>
+              )}
             </View>
           </ExpandableCard>
 
