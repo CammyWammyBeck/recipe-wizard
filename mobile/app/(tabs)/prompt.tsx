@@ -232,15 +232,8 @@ export default function PromptScreen() {
     }
 
     setIsLoading(true);
-    
-    try {
-      // TEMPORARY: Force API failure for testing - remove this!
-      if (prompt.toLowerCase().includes('test fail')) {
-        // console.log('Forcing API failure for testing');
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
-        throw new Error('Something went wrong. Tap to retry.');
-      }
 
+    try {
       // Start async job
       // console.log('Creating recipe with prompt:', prompt);
       const jobResponse = await apiService.startRecipeGeneration({

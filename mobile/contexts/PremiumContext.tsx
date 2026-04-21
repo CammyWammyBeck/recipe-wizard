@@ -35,8 +35,9 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
   const [purchaseInfo, setPurchaseInfo] = useState<PurchaseInfo | null>(null);
   const [offerings, setOfferings] = useState<OfferingInfo[]>([]);
 
-  // Check environment variable for initial premium status
-  const isEnvironmentPremium = (process.env.EXPO_PUBLIC_IS_PREMIUM === 'true');
+  // Dev-only override for initial premium status. Ignored in production builds
+  // so a leaked env var cannot grant premium to real users.
+  const isEnvironmentPremium = __DEV__ && (process.env.EXPO_PUBLIC_IS_PREMIUM === 'true');
 
   useEffect(() => {
     initializeAndLoadStatus();
@@ -100,14 +101,11 @@ export function PremiumProvider({ children }: PremiumProviderProps) {
   };
 
   const checkPremiumFeature = (featureName: string): boolean => {
-    if (isLoading) {
-      // During loading, allow access to avoid blocking UI
-      return true;
-    }
-
-    const hasAccess = isPremium;
-    // console.log(`🔐 Premium check for "${featureName}": ${hasAccess ? 'GRANTED' : 'DENIED'}`);
-    return hasAccess;
+    // Fail closed while status is still resolving so free users cannot briefly
+    // access gated features on startup. UI should render a loading state when
+    // `isLoading` is true rather than rely on this check.
+    if (isLoading) return false;
+    return isPremium;
   };
 
   // Revenue Cat integration methods

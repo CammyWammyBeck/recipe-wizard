@@ -160,11 +160,17 @@ export const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   size = 'medium',
 }) => {
   const { theme } = useAppTheme();
-  const { isPremium, checkPremiumFeature } = usePremium();
+  const { isPremium, isLoading, checkPremiumFeature } = usePremium();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Check if this specific feature is available
   const hasFeatureAccess = checkPremiumFeature(featureName);
+
+  // While premium status is resolving, render nothing so neither the gated
+  // children nor the upgrade placeholder flashes to the wrong set of users.
+  if (isLoading) {
+    return null;
+  }
 
   // Size configurations for replace mode
   const sizeConfig = {
