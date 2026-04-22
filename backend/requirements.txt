@@ -13,6 +13,11 @@ psycopg2-binary>=2.9.7        # PostgreSQL adapter (binary for Heroku)
 # Authentication & Security
 python-jose[cryptography]==3.3.0  # JWT token handling with cryptography
 passlib[bcrypt]==1.7.4         # Password hashing with bcrypt
+# passlib 1.7.4 uses a private bcrypt API removed in bcrypt 4.1 — without
+# this cap, fresh deploys hash-and-reject every password with a misleading
+# "password cannot be longer than 72 bytes" error. Remove once passlib ships
+# a fix or we migrate to bcrypt directly.
+bcrypt<4.1                     # MUST stay pinned — see note above
 python-multipart==0.0.6        # Form data parsing for file uploads
 
 # Data Validation

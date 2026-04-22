@@ -100,6 +100,16 @@ python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
+# Backend tests — full suite uses in-memory SQLite + a stubbed OpenAI client,
+# so `pytest` runs offline with no side effects.
+pip install -r requirements-dev.txt
+pytest
+
+# Optional live OpenAI contract tests (real API calls, cost money — skipped
+# unless explicitly enabled). Run before cutting a store build or after
+# bumping DEFAULT_MODEL.
+RUN_LIVE_OPENAI=1 OPENAI_API_KEY=sk-... pytest tests/test_openai_live.py
+
 # Build + submit
 # EAS login is interactive — inside Claude Code, prefix with `!` so the
 # command runs in the user's shell and stdout lands in the conversation.
