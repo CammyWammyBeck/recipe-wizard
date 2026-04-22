@@ -7,8 +7,8 @@ import logging
 from ..database import get_db
 from ..models import User
 from ..schemas import (
-    UserCreate, UserLogin, UserResponse, Token, 
-    ErrorResponse, UserProfile
+    UserCreate, UserLogin, UserResponse, Token,
+    ErrorResponse, UserProfile, PasswordChange
 )
 from ..utils.auth import (
     AuthUtils, get_current_user, create_access_token_for_user
@@ -205,37 +205,31 @@ async def verify_token(
 
 @router.post("/change-password")
 async def change_password(
-    current_password: str,
-    new_password: str,
+    payload: PasswordChange,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Change user's password.
-    
-    Requires current password for verification.
+    Change the current user's password.
+
+    Passwords are accepted as a JSON body so they never appear in URLs or
+    access logs. Requires the current password for verification and enforces
+    an 8-character minimum on the new password (via the Pydantic schema).
     """
     try:
         # Verify current password
-        if not AuthUtils.verify_password(current_password, current_user.hashed_password):
+        if not AuthUtils.verify_password(payload.current_password, current_user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect current password"
             )
-        
-        # Validate new password (basic validation)
-        if len(new_password) < 8:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="New password must be at least 8 characters"
-            )
-        
+
         # Hash and update password
-        current_user.hashed_password = AuthUtils.get_password_hash(new_password)
+        current_user.hashed_password = AuthUtils.get_password_hash(payload.new_password)
         db.commit()
-        
+
         logger.info(f"Password changed for user: {current_user.email}")
-        
+
         return {"message": "Password successfully changed"}
         
     except HTTPException:

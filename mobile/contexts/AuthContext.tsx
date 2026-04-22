@@ -1,6 +1,7 @@
 // Authentication context for managing global auth state
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AuthService, { User, LoginCredentials, RegisterData, AuthTokens } from '../services/auth';
+import { PreferencesService } from '../services/preferences';
 
 interface AuthContextType {
   // State
@@ -39,20 +40,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isAuth) {
         // Validate tokens with backend
         const validUser = await AuthService.validateToken();
-        
+
         if (validUser) {
           setUser(validUser);
-          // console.log('✅ Authentication restored for:', validUser.email);
+          PreferencesService.syncFromBackend().catch(() => {});
         } else {
           // Tokens invalid, try refresh
-          // console.log('⚠️ Stored tokens invalid, attempting refresh...');
           const refreshResult = await AuthService.refreshToken();
-          
+
           if (refreshResult) {
             setUser(refreshResult.user);
-            // console.log('✅ Authentication refreshed for:', refreshResult.user.email);
-          } else {
-            // console.log('❌ Token refresh failed, user needs to login');
+            PreferencesService.syncFromBackend().catch(() => {});
           }
         }
       } else {
@@ -69,12 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (credentials: LoginCredentials) => {
     try {
       setIsLoading(true);
-      
+
       const tokens = await AuthService.login(credentials);
       setUser(tokens.user);
-      
-      // console.log('✅ User logged in:', tokens.user.email);
-      
+
+      // Pull server-side preferences (allergens, dietary, grocery categories) so
+      // a fresh install / new device inherits the user's existing setup.
+      PreferencesService.syncFromBackend().catch(() => {});
     } catch (error) {
       console.error('❌ Login failed in context:', error);
       throw error;
@@ -86,12 +85,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (userData: RegisterData) => {
     try {
       setIsLoading(true);
-      
+
       const tokens = await AuthService.register(userData);
       setUser(tokens.user);
-      
-      // console.log('✅ User registered:', tokens.user.email);
-      
+
+      // Push any preferences the user configured before signing up so they
+      // survive reinstall. If there's no local data yet this is a no-op on
+      // the backend.
+      try {
+        const local = await PreferencesService.loadPreferences();
+        PreferencesService.saveToBackend(local).catch(() => {});
+      } catch {}
     } catch (error) {
       console.error('❌ Registration failed in context:', error);
       throw error;

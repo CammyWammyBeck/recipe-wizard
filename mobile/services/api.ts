@@ -113,19 +113,11 @@ class APIService {
       };
 
       const url = `${this.baseUrl}/api/recipes/generate`;
-      // console.log('🚀 Making API request to:', url);
-      // console.log('📝 Request payload:', JSON.stringify(enhancedRequest, null, 2));
-      
-      const headers = await this.getAuthHeaders();
-      // console.log('🔑 Using auth headers:', Object.keys(headers));
-      
-      const response = await fetch(url, {
+
+      const response = await this.makeAuthenticatedRequest(url, {
         method: 'POST',
-        headers,
         body: JSON.stringify(enhancedRequest),
       });
-      
-      // console.log('📡 Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -135,6 +127,7 @@ class APIService {
       return data;
     } catch (error) {
       console.error('Error generating recipe:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to generate recipe. Please try again.');
     }
   }
@@ -159,29 +152,22 @@ class APIService {
       };
 
       const url = `${this.baseUrl}/api/recipes/modify`;
-      // console.log('🔄 Making recipe modification request to:', url);
-      // console.log('📝 Modification request payload:', JSON.stringify(enhancedRequest, null, 2));
-      
-      const headers = await this.getAuthHeaders();
-      // console.log('🔑 Using auth headers:', Object.keys(headers));
-      
-      const response = await fetch(url, {
+
+      const response = await this.makeAuthenticatedRequest(url, {
         method: 'POST',
-        headers,
         body: JSON.stringify(enhancedRequest),
       });
-      
-      // console.log('📡 Modification response status:', response.status, response.statusText);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.detail || errorData.error || response.statusText}`);
       }
 
       const data = await response.json();
       return data;
     } catch (error) {
       console.error('Error modifying recipe:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to modify recipe. Please try again.');
     }
   }
@@ -218,18 +204,16 @@ class APIService {
    */
   async saveRecipe(recipeData: RecipeGenerationResponse): Promise<SavedRecipeData> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/recipes/save/${recipeData.id}`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/save/${recipeData.id}`, {
         method: 'POST',
-        headers,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
-      
+
       // Return the recipe data with saved metadata
       return {
         ...recipeData,
@@ -238,6 +222,7 @@ class APIService {
       };
     } catch (error) {
       console.error('Error saving recipe:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to save recipe. Please try again.');
     }
   }
@@ -247,17 +232,16 @@ class APIService {
    */
   async unsaveRecipe(recipeId: string): Promise<void> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/recipes/saved/${recipeId}`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/saved/${recipeId}`, {
         method: 'DELETE',
-        headers,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error unsaving recipe:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to unsave recipe. Please try again.');
     }
   }
@@ -280,12 +264,10 @@ class APIService {
    */
   async getSavedRecipes(): Promise<SavedRecipeData[]> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/recipes/saved`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/saved`, {
         method: 'GET',
-        headers,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -294,6 +276,7 @@ class APIService {
       return data.recipes || [];
     } catch (error) {
       console.error('Error fetching saved recipes:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to load saved recipes. Please try again.');
     }
   }
@@ -303,12 +286,10 @@ class APIService {
    */
   async getConversationHistory(limit: number = 20, offset: number = 0): Promise<ConversationEntry[]> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`, {
         method: 'GET',
-        headers,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -317,6 +298,7 @@ class APIService {
       return data.recipes || [];
     } catch (error) {
       console.error('Error fetching conversation history:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to load conversation history. Please try again.');
     }
   }
@@ -326,12 +308,10 @@ class APIService {
    */
   async getConversationHistoryWithPagination(limit: number = 20, offset: number = 0): Promise<PaginatedConversationResponse> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/recipes/history?limit=${limit}&offset=${offset}`, {
         method: 'GET',
-        headers,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -340,27 +320,8 @@ class APIService {
       return data;
     } catch (error) {
       console.error('Error fetching conversation history with pagination:', error);
+      if (error instanceof Error) throw error;
       throw new Error('Failed to load conversation history. Please try again.');
-    }
-  }
-
-  /**
-   * Delete a saved recipe
-   */
-  async deleteRecipe(recipeId: string): Promise<void> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/api/recipes/${recipeId}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('Error deleting recipe:', error);
-      throw new Error('Failed to delete recipe. Please try again.');
     }
   }
 

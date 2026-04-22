@@ -245,7 +245,7 @@ class RecipeJobService:
                     db.commit()
         finally:
             # Clean up active job tracking
-            if job_id in self.active_jobs[job_id]:
+            if job_id in self.active_jobs:
                 del self.active_jobs[job_id]
     
     async def _save_recipe_to_database(

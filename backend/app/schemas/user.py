@@ -31,6 +31,19 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
 # User Preferences Schemas
+class ProfileUpdate(BaseModel):
+    """Schema for updating basic user profile fields"""
+    first_name: Optional[str] = Field(None, max_length=100)
+    last_name: Optional[str] = Field(None, max_length=100)
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+
+
+class PasswordChange(BaseModel):
+    """Schema for changing the current user's password"""
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
+
+
 class UserPreferencesUpdate(BaseModel):
     """Schema for updating user preferences"""
     units: Optional[str] = Field(None, pattern="^(metric|imperial)$")

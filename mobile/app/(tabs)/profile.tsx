@@ -18,6 +18,7 @@ import DragList, { DragListRenderItemInfo } from 'react-native-draglist';
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePremium } from '../../contexts/PremiumContext';
+import { PreferencesService } from '../../services/preferences';
 import { Button } from '../../components/Button';
 import { TextInput } from '../../components/TextInput';
 import { HeaderComponent } from '../../components/HeaderComponent';
@@ -73,7 +74,7 @@ export default function ProfileScreen() {
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Load preferences from storage
+  // Load preferences from storage, then refresh from backend in the background
   useEffect(() => {
     loadPreferences();
   }, []);
@@ -94,6 +95,15 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
+
+    // Pull latest from backend (no-op if offline/unauthenticated) and reflect
+    // any server-side changes in the UI without blocking initial render.
+    try {
+      const synced = await PreferencesService.syncFromBackend();
+      if (synced) {
+        setPreferences(synced);
+      }
+    } catch {}
   };
 
 
@@ -107,7 +117,11 @@ export default function ProfileScreen() {
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPreferences));
       setLastSaved(new Date());
-      // console.log('✅ Preferences auto-saved successfully');
+
+      // Mirror to the backend so preferences (especially allergens) survive
+      // reinstall and sync across devices. Fire-and-forget; local write is the
+      // source of truth for this UI.
+      PreferencesService.saveToBackend(updatedPreferences).catch(() => {});
     } catch (error) {
       console.error('❌ Failed to auto-save preferences:', error);
       // Don't show alert for auto-save failures - just log
@@ -247,27 +261,16 @@ export default function ProfileScreen() {
     });
   };
 
-  const reorderCategories = useCallback((newOrder: string[]) => {
+  const onCategoriesReordered = useCallback((fromIndex: number, toIndex: number) => {
     setPreferences(prev => {
-      const updated = {
-        ...prev,
-        groceryCategories: newOrder
-      };
+      const newOrder = [...prev.groceryCategories];
+      const [removed] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, removed);
+      const updated = { ...prev, groceryCategories: newOrder };
       debouncedAutoSave(updated);
       return updated;
     });
   }, [debouncedAutoSave]);
-
-  const onCategoriesReordered = useCallback((fromIndex: number, toIndex: number) => {
-    const newOrder = [...preferences.groceryCategories];
-    const [removed] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, removed);
-    
-    setPreferences(prev => ({
-      ...prev,
-      groceryCategories: newOrder
-    }));
-  }, [preferences.groceryCategories]);
 
   const renderCategoryItem = useCallback((
     info: DragListRenderItemInfo<string>

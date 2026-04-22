@@ -6,8 +6,8 @@ import logging
 from ..database import get_db
 from ..models import User
 from ..schemas import (
-    UserResponse, UserProfile, UserPreferencesUpdate, 
-    UserPreferencesResponse, ErrorResponse
+    UserResponse, UserProfile, UserPreferencesUpdate,
+    UserPreferencesResponse, ErrorResponse, ProfileUpdate
 )
 from ..utils.auth import get_current_user
 
@@ -30,20 +30,21 @@ async def get_user_profile(
 
 @router.put("/profile", response_model=UserProfile)
 async def update_user_profile(
-    first_name: Optional[str] = None,
-    last_name: Optional[str] = None,
-    username: Optional[str] = None,
+    update: ProfileUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Update user's basic profile information.
+
+    Accepts a JSON body so credentials/PII never end up in query strings or
+    access logs.
     """
     try:
         # Check username uniqueness if provided
-        if username and username != current_user.username:
+        if update.username and update.username != current_user.username:
             existing_user = db.query(User).filter(
-                User.username == username, 
+                User.username == update.username,
                 User.id != current_user.id
             ).first()
             if existing_user:
@@ -51,19 +52,19 @@ async def update_user_profile(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Username already taken"
                 )
-            current_user.username = username
-        
-        # Update profile fields
-        if first_name is not None:
-            current_user.first_name = first_name
-        if last_name is not None:
-            current_user.last_name = last_name
-        
+            current_user.username = update.username
+
+        # Update profile fields (only those explicitly provided)
+        if update.first_name is not None:
+            current_user.first_name = update.first_name
+        if update.last_name is not None:
+            current_user.last_name = update.last_name
+
         db.commit()
         db.refresh(current_user)
-        
+
         logger.info(f"Profile updated for user: {current_user.email}")
-        
+
         return current_user
         
     except HTTPException:

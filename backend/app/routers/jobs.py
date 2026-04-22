@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_limiter.depends import RateLimiter
 import os
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from typing import Optional
 import logging
 
@@ -304,7 +305,7 @@ async def cancel_job(
         
         # Update job status
         job.status = "cancelled"
-        job.completed_at = job.func.now()
+        job.completed_at = func.now()
         job.error_message = "Job cancelled by user"
         db.commit()
         

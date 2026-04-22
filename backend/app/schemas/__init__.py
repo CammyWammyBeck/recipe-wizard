@@ -1,8 +1,9 @@
 # Pydantic schemas package
 from .base import BaseResponse, ErrorResponse, PaginatedResponse, HealthResponse, StatusResponse
 from .user import (
-    UserCreate, UserLogin, UserResponse, UserPreferencesUpdate, 
-    UserPreferencesResponse, UserProfile, Token, TokenData
+    UserCreate, UserLogin, UserResponse, UserPreferencesUpdate,
+    UserPreferencesResponse, UserProfile, Token, TokenData,
+    ProfileUpdate, PasswordChange
 )
 from .recipe import (
     IngredientCreate, IngredientResponse, IngredientAPI,
@@ -27,8 +28,9 @@ __all__ = [
     "BaseResponse", "ErrorResponse", "PaginatedResponse", "HealthResponse", "StatusResponse",
     
     # User schemas
-    "UserCreate", "UserLogin", "UserResponse", "UserPreferencesUpdate", 
+    "UserCreate", "UserLogin", "UserResponse", "UserPreferencesUpdate",
     "UserPreferencesResponse", "UserProfile", "Token", "TokenData",
+    "ProfileUpdate", "PasswordChange",
     
     # Recipe schemas
     "IngredientCreate", "IngredientResponse", "IngredientAPI",
