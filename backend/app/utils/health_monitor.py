@@ -14,6 +14,12 @@ from .database_health import get_database_health
 
 logger = logging.getLogger(__name__)
 
+def _disk_path() -> str:
+    """Return the most meaningful disk path to monitor.
+    On Heroku the root is a read-only slug image that always reads 100%;
+    /app is the actual writable volume. Fall back to / elsewhere."""
+    return "/app" if os.path.isdir("/app") else "/"
+
 # Global startup time for uptime calculation
 STARTUP_TIME = time.time()
 
@@ -41,7 +47,7 @@ class HealthMonitor:
             
             # Basic system metrics
             memory_percent = psutil.virtual_memory().percent
-            disk_percent = psutil.disk_usage('/').percent
+            disk_percent = psutil.disk_usage(_disk_path()).percent
             
             status = "healthy"
             checks = {
@@ -209,7 +215,7 @@ class HealthMonitor:
             memory_available_mb = memory.available // (1024 * 1024)
             
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage(_disk_path())
             disk_percent = disk.percent
             disk_free_gb = disk.free // (1024 * 1024 * 1024)
             
@@ -297,7 +303,7 @@ class HealthMonitor:
         memory = psutil.virtual_memory()
         memory_ok = memory.percent < 95
         
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage(_disk_path())
         disk_ok = disk.percent < 95
         
         ready = db_ready and memory_ok and disk_ok

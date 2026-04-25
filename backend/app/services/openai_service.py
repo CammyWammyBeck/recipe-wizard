@@ -347,7 +347,7 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                         model=self.default_model,
                         messages=messages,
                         temperature=0.7,
-                        max_tokens=2000,
+                        max_completion_tokens=2000,
                         response_format={"type": "json_object"}
                     )
                     
@@ -665,7 +665,7 @@ INSTRUCTIONS:
                         model=self.default_model,
                         messages=messages,
                         temperature=0.3,  # Lower temperature for more consistent modifications
-                        max_tokens=2000,
+                        max_completion_tokens=2000,
                         response_format={"type": "json_object"}
                     )
                     
@@ -856,7 +856,7 @@ GUIDELINES:
                         model=self.default_model,
                         messages=messages,
                         temperature=0.8,  # Higher creativity for ideas
-                        max_tokens=1000,  # Less tokens needed for ideas
+                        max_completion_tokens=1000,
                         response_format={"type": "json_object"}
                     )
                     
