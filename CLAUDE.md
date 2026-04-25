@@ -170,10 +170,21 @@ The three historical `*_IMPLEMENTATION*.md` / `*_CHECKLIST.md` files at repo roo
 - **The backend's `DELETE /api/users/account` cascade-deletes** conversations, saved_recipes, created_recipes, recipe_jobs, and shopping_lists. Don't add new user-linked tables without a matching `cascade="all, delete-orphan"` on `User.relationships`.
 - **The mobile `services/auth.ts` re-stores the plaintext password in SecureStore** for silent re-auth after JWT refresh failure. This is a deliberate (though debatable) UX choice; discuss before changing.
 - **The backend LLM endpoints sometimes retry internally up to 3 times.** The mobile prompt screen reflects this with a 3-segment progress bar animation driven by `retry_count` in the job status.
+- **Use `max_completion_tokens`, not `max_tokens`, in all OpenAI API calls.** Newer models (e.g. `gpt-5.4-nano`, `o4-mini`) reject `max_tokens` outright. All three call sites in `openai_service.py` already use `max_completion_tokens`; don't revert them.
+- **The Heroku `DEFAULT_MODEL` env var is `gpt-5.4-nano`.** The in-code fallback is `gpt-4o-mini`, but production always uses the env var. Check Heroku config before assuming the active model.
+- **The health monitor checks `/app` disk usage, not `/`.** On Heroku the root `/` is the read-only slug image and always reports ~100%; `/app` is the actual writable volume. `health_monitor.py` uses `_disk_path()` to pick the right path. Don't change it back to a hardcoded `'/'`.
 
 ---
 
 ## Session history (recent)
+
+### 2026-04-24/25 — Android test build + backend fixes
+- Built EAS `preview` APK for Android device testing (versionCode auto-bumped to 16).
+- Diagnosed `Unsupported parameter: 'max_tokens'` error — caused by `DEFAULT_MODEL=gpt-5.4-nano` on Heroku. Replaced `max_tokens` with `max_completion_tokens` in all three `openai_service.py` call sites.
+- Fixed health monitor reporting `disk_usage: 100%` — was checking `/` (read-only slug image) instead of `/app` (writable volume). Introduced `_disk_path()` helper in `health_monitor.py`.
+- Confirmed live DB read/write for all user preference fields via Heroku API.
+- Added `heroku` git remote (was missing locally).
+- Deployed fixes as commit `2d599a1`.
 
 ### 2026-04-21 — shipping prep
 - Full QA sweep. Fixed three mobile issues: test-fail backdoor (`prompt.tsx`), premium env-var leak (`PremiumContext.tsx`), fail-open premium check during loading (`PremiumContext.tsx` + `PremiumFeature.tsx`).

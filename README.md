@@ -2,7 +2,7 @@
 
 > **Create amazing recipes with just a few words**
 
-Recipe Wizard is a cross-platform mobile application that generates personalized recipes and grocery lists from simple user prompts using a local LLM. Transform casual requests like "creamy chicken pasta with sundried tomatoes" into structured grocery lists and detailed recipes.
+Recipe Wizard is a cross-platform mobile application that generates personalized recipes and grocery lists from simple user prompts using OpenAI via a FastAPI backend. Transform casual requests like "creamy chicken pasta with sundried tomatoes" into structured grocery lists and detailed recipes.
 
 ## ✨ Features
 
@@ -44,7 +44,7 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 - **PostgreSQL** - Robust relational database with migrations
 - **SQLAlchemy** - Python SQL toolkit and ORM
 - **Alembic** - Database migration tool (migrations implemented)
-- **OpenAI API** - GPT-4 integration for intelligent recipe generation
+- **OpenAI API** - AI recipe generation via configurable model (`DEFAULT_MODEL`)
 - **JWT** - Secure authentication system with token refresh
 - **Pydantic** - Data validation and serialization
 - **Rate Limiting** - Redis-based request throttling
@@ -60,7 +60,7 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 - **Expo CLI** (`npm install -g @expo/cli`)
 - **PostgreSQL** (for backend database)
 - **Redis** (for rate limiting - optional for development)
-- **OpenAI API Key** (for GPT-4 recipe generation)
+- **OpenAI API Key** (for OpenAI recipe generation)
 
 ### Setup Instructions
 
@@ -116,8 +116,7 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 
    # OpenAI Integration (REQUIRED)
    OPENAI_API_KEY=your-openai-api-key-here
-   OPENAI_MODEL=gpt-4
-   OPENAI_MAX_TOKENS=2000
+   DEFAULT_MODEL=gpt-4o-mini
 
    # Optional: Rate Limiting
    REDIS_URL=redis://localhost:6379
@@ -257,7 +256,7 @@ Design mockups are available in the `design/examples/` folder.
    - **History**: Complete recipe history with saved favorites management
    - **Shopping List**: Dedicated shopping list with drag-to-reorder and categories
    - **Profile**: Comprehensive settings for dietary preferences and customization
-4. **Recipe Generation**: Real-time recipe and grocery list creation via GPT-4
+4. **Recipe Generation**: Real-time recipe and grocery list creation via OpenAI
 5. **Results**: Organized grocery list with checkboxes + detailed cooking instructions
 6. **Saving**: One-tap saving to personal recipe collection with instant sync
 
@@ -281,7 +280,7 @@ Design mockups are available in the `design/examples/` folder.
 
 **✅ Backend - FULLY OPERATIONAL:**
 - [x] Complete FastAPI project structure with comprehensive error handling
-- [x] OpenAI GPT-4 integration for intelligent recipe generation
+- [x] OpenAI OpenAI integration for intelligent recipe generation
 - [x] Full database schema and models with Alembic migrations
 - [x] Authentication endpoints with JWT token management and refresh
 - [x] Recipe generation API endpoints with structured JSON responses
@@ -304,7 +303,7 @@ Design mockups are available in the `design/examples/` folder.
 - [x] AI personalization with additional preferences text input
 - [x] Recipe saving and unsaving with instant visual feedback
 - [x] Authentication context with persistent login state and auto-refresh
-- [x] OpenAI GPT-4 integration replacing local LLM setup
+- [x] OpenAI OpenAI integration replacing local LLM setup
 
 **🔄 Optional Future Enhancements:**
 - [ ] Push notifications for meal planning and reminders
@@ -350,10 +349,9 @@ DATABASE_URL=postgresql://user:password@localhost:5432/recipewizard
 SECRET_KEY=your-secret-key-here
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# LLM Integration
+# OpenAI Integration
 OPENAI_API_KEY=your-openai-api-key-here
-OPENAI_MODEL=gpt-4
-OPENAI_MAX_TOKENS=2000
+DEFAULT_MODEL=gpt-4o-mini
 
 # API Configuration
 API_HOST=0.0.0.0
@@ -376,16 +374,6 @@ export EXPO_PUBLIC_API_BASE_URL="http://localhost:8000"
 }
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and ensure code quality
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -394,8 +382,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Expo** for the excellent React Native development platform
 - **FastAPI** for the modern Python web framework
-- **OpenAI** for GPT-4 recipe generation
-- **Tailwind CSS** for the utility-first CSS framework
+- **OpenAI** for AI recipe generation
+- **RevenueCat** for subscription management
 - **Material Design** for the component system
 
 ---
