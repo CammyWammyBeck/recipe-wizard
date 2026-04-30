@@ -63,9 +63,9 @@ class TestPreferenceContextFromRequest:
         assert "soy" in ctx.lower()
         assert "mushrooms" in ctx
         assert "low sodium please" in ctx
-        # Additional preferences should be flagged as overriding
-        assert "ADDITIONAL PREFERENCES" in ctx
-        assert ctx.startswith("\n\nUser Preferences:")
+        # Additional preferences section present
+        assert "Additional preferences" in ctx
+        assert ctx.startswith("\n\n## USER PROFILE")
 
     def test_empty_preferences_returns_empty_string(self):
         assert openai_service._generate_preference_context_from_request({}) == ""
@@ -281,3 +281,300 @@ class TestLLMService:
         )
         status = await check_llm_service_status()
         assert status["status"] == "disconnected"
+
+
+# ---------------------------------------------------------------------------
+# _split_preferences
+# ---------------------------------------------------------------------------
+class TestSplitPreferences:
+    def test_separates_hard_and_soft(self):
+        split = openai_service._split_preferences({
+            "allergens": ["peanut"],
+            "dietaryRestrictions": ["vegan"],
+            "preferredDifficulty": "easy",
+            "defaultServings": 2,
+            "maxCookTime": 30,
+            "maxPrepTime": 10,
+            "units": "metric",
+            "dislikes": ["mushrooms"],
+            "additionalPreferences": "low sodium",
+        })
+        assert split["hard_allergens"] == ["peanut"]
+        assert split["hard_dietary"] == ["vegan"]
+        assert split["soft_difficulty"] == "easy"
+        assert split["soft_servings"] == 2
+        assert split["soft_max_cook_time"] == 30
+        assert split["soft_max_prep_time"] == 10
+        assert split["soft_units"] == "metric"
+        assert split["soft_dislikes"] == ["mushrooms"]
+        assert split["override_notes"] == "low sodium"
+
+    def test_empty_preferences_all_falsy(self):
+        split = openai_service._split_preferences({})
+        assert split["hard_allergens"] == []
+        assert split["hard_dietary"] == []
+        assert split["override_notes"] is None
+
+    def test_none_lists_become_empty(self):
+        split = openai_service._split_preferences({"allergens": None, "dislikes": None})
+        assert split["hard_allergens"] == []
+        assert split["soft_dislikes"] == []
+
+    def test_blank_additional_preferences_becomes_none(self):
+        split = openai_service._split_preferences({"additionalPreferences": "   "})
+        assert split["override_notes"] is None
+
+
+# ---------------------------------------------------------------------------
+# _generate_preference_context_from_request — new structured format
+# ---------------------------------------------------------------------------
+class TestPreferenceContextStructured:
+    def test_hard_constraints_section_present(self):
+        ctx = openai_service._generate_preference_context_from_request({
+            "allergens": ["peanut"],
+            "dietaryRestrictions": ["vegan"],
+        })
+        assert "Hard constraints" in ctx
+        assert "peanut" in ctx
+        assert "vegan" in ctx
+
+    def test_override_notes_section_present(self):
+        ctx = openai_service._generate_preference_context_from_request({
+            "additionalPreferences": "extra spicy please",
+        })
+        assert "Additional preferences" in ctx
+        assert "extra spicy please" in ctx
+
+    def test_soft_preferences_section_present(self):
+        ctx = openai_service._generate_preference_context_from_request({
+            "units": "imperial",
+            "defaultServings": 2,
+            "preferredDifficulty": "easy",
+            "maxCookTime": 30,
+            "dislikes": ["mushrooms"],
+        })
+        assert "Soft preferences" in ctx
+        assert "imperial" in ctx
+        assert "mushrooms" in ctx
+
+    def test_empty_sections_omitted(self):
+        ctx = openai_service._generate_preference_context_from_request({
+            "units": "metric",
+        })
+        assert "Hard constraints" not in ctx
+        assert "Additional preferences" not in ctx
+        assert "Soft preferences" in ctx
+
+    def test_empty_dict_returns_empty_string(self):
+        assert openai_service._generate_preference_context_from_request({}) == ""
+
+    def test_user_profile_header_present_when_nonempty(self):
+        ctx = openai_service._generate_preference_context_from_request({"units": "metric"})
+        assert ctx.startswith("\n\n## USER PROFILE")
+
+
+# ---------------------------------------------------------------------------
+# _check_preference_compliance
+# ---------------------------------------------------------------------------
+class TestCheckPreferenceCompliance:
+    def _recipe_with_ingredients(self, names):
+        return {
+            "recipe": {"title": "Test", "instructions": ["Cook"]},
+            "ingredients": [{"name": n, "amount": "1", "unit": "cup", "category": "produce"} for n in names],
+        }
+
+    def test_no_preferences_returns_none(self):
+        recipe = self._recipe_with_ingredients(["chicken breast", "olive oil"])
+        assert openai_service._check_preference_compliance(recipe, None) is None
+
+    def test_no_allergens_or_dietary_returns_none(self):
+        recipe = self._recipe_with_ingredients(["chicken breast"])
+        assert openai_service._check_preference_compliance(recipe, {"units": "metric"}) is None
+
+    def test_vegan_violation_detected(self):
+        recipe = self._recipe_with_ingredients(["chicken breast", "olive oil"])
+        result = openai_service._check_preference_compliance(
+            recipe, {"dietaryRestrictions": ["vegan"]}
+        )
+        assert result is not None
+        assert "chicken" in result.lower()
+
+    def test_allergen_violation_detected(self):
+        recipe = self._recipe_with_ingredients(["peanut butter", "jelly"])
+        result = openai_service._check_preference_compliance(
+            recipe, {"allergens": ["peanut"]}
+        )
+        assert result is not None
+        assert "peanut" in result.lower()
+
+    def test_gluten_free_violation_detected(self):
+        recipe = self._recipe_with_ingredients(["wheat flour", "eggs"])
+        result = openai_service._check_preference_compliance(
+            recipe, {"dietaryRestrictions": ["gluten-free"]}
+        )
+        assert result is not None
+        assert "wheat" in result.lower()
+
+    def test_dairy_free_compliant_passes(self):
+        recipe = self._recipe_with_ingredients(["coconut milk", "tofu", "garlic"])
+        result = openai_service._check_preference_compliance(
+            recipe, {"dietaryRestrictions": ["dairy-free"]}
+        )
+        assert result is None
+
+    def test_compliance_error_contains_actionable_text(self):
+        recipe = self._recipe_with_ingredients(["butter", "garlic"])
+        result = openai_service._check_preference_compliance(
+            recipe, {"dietaryRestrictions": ["vegan"]}
+        )
+        assert result is not None
+        assert "Remove or substitute" in result
+
+
+# ---------------------------------------------------------------------------
+# _validate_recipe_data — tightened checks
+# ---------------------------------------------------------------------------
+class TestValidateRecipeDataTightened:
+    def test_empty_title_fails(self):
+        ok, err = openai_service._validate_recipe_data({
+            "recipe": {"title": "", "instructions": ["Cook it"]},
+            "ingredients": [{"name": "x", "amount": "1", "category": "y"}],
+        })
+        assert not ok and err == "format"
+
+    def test_empty_instructions_list_fails(self):
+        ok, err = openai_service._validate_recipe_data({
+            "recipe": {"title": "My Recipe", "instructions": []},
+            "ingredients": [{"name": "x", "amount": "1", "category": "y"}],
+        })
+        assert not ok and err == "format"
+
+    def test_blank_string_instructions_fails(self):
+        ok, err = openai_service._validate_recipe_data({
+            "recipe": {"title": "My Recipe", "instructions": "   "},
+            "ingredients": [{"name": "x", "amount": "1", "category": "y"}],
+        })
+        assert not ok and err == "format"
+
+    def test_string_instructions_single_step_passes(self):
+        ok, err = openai_service._validate_recipe_data({
+            "recipe": {"title": "My Recipe", "instructions": "Cook everything"},
+            "ingredients": [{"name": "x", "amount": "1", "category": "y"}],
+        })
+        assert ok and err == ""
+
+
+# ---------------------------------------------------------------------------
+# generate_recipe — compliance retry integration
+# ---------------------------------------------------------------------------
+class TestGenerateRecipeComplianceRetry:
+    async def test_compliance_failure_triggers_retry(self, monkeypatch, user_factory):
+        """First attempt has a vegan-violating ingredient; second attempt is clean."""
+        vegan_recipe = {
+            "recipe": {
+                "title": "Pasta",
+                "instructions": ["Cook pasta"],
+                "description": "",
+                "prepTime": 10,
+                "cookTime": 20,
+                "servings": 4,
+                "difficulty": "easy",
+                "tips": [],
+            },
+            "ingredients": [
+                {"name": "chicken breast", "amount": "200", "unit": "g", "category": "butchery"},
+                {"name": "pasta", "amount": "300", "unit": "g", "category": "dry-goods"},
+            ],
+        }
+        clean_vegan_recipe = {
+            "recipe": {
+                "title": "Vegan Pasta",
+                "instructions": ["Cook pasta"],
+                "description": "",
+                "prepTime": 10,
+                "cookTime": 20,
+                "servings": 4,
+                "difficulty": "easy",
+                "tips": [],
+            },
+            "ingredients": [
+                {"name": "pasta", "amount": "300", "unit": "g", "category": "dry-goods"},
+                {"name": "olive oil", "amount": "2", "unit": "tbsp", "category": "pantry"},
+            ],
+        }
+
+        attempts = {"n": 0}
+
+        def create(**kwargs):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                return make_chat_completion(json.dumps(vegan_recipe))
+            return make_chat_completion(json.dumps(clean_vegan_recipe))
+
+        fake = FakeOpenAIClient()
+        fake.chat.completions.create = create
+        monkeypatch.setattr(openai_service, "client", fake)
+
+        from app.schemas import RecipeGenerationRequest
+        request = RecipeGenerationRequest(
+            prompt="vegan pasta",
+            preferences={
+                "dietaryRestrictions": ["vegan"],
+                "groceryCategories": ["produce", "dry-goods", "pantry", "butchery"],
+            },
+        )
+        result = await openai_service.generate_recipe(request)
+        assert attempts["n"] == 2
+        assert result["recipe_data"]["recipe"]["title"] == "Vegan Pasta"
+
+    async def test_system_prompt_contains_priority_order(self):
+        prompt = openai_service.create_recipe_system_prompt(
+            user_categories=["produce", "dairy", "pantry"]
+        )
+        assert "PRIORITY ORDER" in prompt
+        assert "Hard constraints" in prompt or "allergen" in prompt.lower()
+
+    async def test_user_message_has_user_request_header(self, user_factory):
+        messages = openai_service.create_recipe_messages(
+            "creamy pasta",
+            user_preferences=None,
+            user_categories=["produce", "pantry"],
+        )
+        user_msg = next(m["content"] for m in messages if m["role"] == "user")
+        assert "## USER REQUEST" in user_msg
+
+    async def test_final_compliance_failure_returns_with_defaults(self, monkeypatch):
+        """All 3 attempts fail compliance — recipe should still be returned with defaults applied."""
+        non_compliant_recipe = {
+            "recipe": {
+                "title": "Chicken Pasta",
+                "instructions": ["Cook chicken", "Add pasta"],
+                # Missing optional fields: description, prepTime, cookTime, tips
+            },
+            "ingredients": [
+                {"name": "chicken breast", "amount": "200", "unit": "g", "category": "meat"},
+                {"name": "pasta", "amount": "300", "unit": "g", "category": "dry-goods"},
+            ],
+        }
+
+        # Every attempt returns the same non-compliant recipe
+        fake = FakeOpenAIClient()
+        fake.chat.completions.create = lambda **kwargs: make_chat_completion(json.dumps(non_compliant_recipe))
+        monkeypatch.setattr(openai_service, "client", fake)
+
+        request = RecipeGenerationRequest(
+            prompt="vegan pasta",
+            preferences={
+                "dietaryRestrictions": ["vegan"],
+                "groceryCategories": ["produce", "dry-goods", "pantry", "meat"],
+            },
+        )
+        result = await openai_service.generate_recipe(request)
+
+        # Should return even though compliance failed; defaults should be applied
+        assert result["recipe_data"]["recipe"]["title"] == "Chicken Pasta"
+        assert result["recipe_data"]["recipe"]["description"] == ""  # Default applied
+        assert result["recipe_data"]["recipe"]["servings"] == 4  # Default applied
+        assert result["recipe_data"]["recipe"]["difficulty"] == "medium"  # Default applied
+        assert isinstance(result["recipe_data"]["recipe"]["instructions"], list)
+        assert result["retry_count"] == 2  # 2 retries (total 3 attempts)

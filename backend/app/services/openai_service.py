@@ -23,7 +23,7 @@ class OpenAIService:
     
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
-        self.default_model = os.getenv("DEFAULT_MODEL", "gpt-4o-mini")
+        self.default_model = os.getenv("DEFAULT_MODEL", "gpt-5.5")
         
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
@@ -51,53 +51,62 @@ class OpenAIService:
     
     def create_recipe_system_prompt(self, user_categories: Optional[List[str]] = None) -> str:
         """Create the system prompt for recipe generation"""
-        
+
         if user_categories and len(user_categories) > 0:
             categories_list = ", ".join(user_categories)
         else:
             raise ValueError("No grocery categories provided. User preferences must include grocery categories for recipe generation.")
-        
-        return f"""You are RecipeWizard, an expert chef and recipe creator. Generate creative, practical recipes based on user requests.
 
-CRITICAL INSTRUCTIONS:
-1. Always respond with ONLY valid JSON in the exact format specified below
-2. Do not include any text before or after the JSON
-3. All ingredient amounts must be practical and realistic
-4. Instructions should be clear and detailed
-5. Include helpful cooking tips
-6. IMPORTANT: Follow all user preferences provided, but if there are conflicts between different preferences, always prioritize "Additional preferences" over all other settings
-7. INGREDIENT CATEGORIES: Every ingredient MUST use one of these exact categories: {categories_list}
-8. COMPLETE SHOPPING LIST: Include ALL items needed to make this recipe in the ingredients list. If you mention "serve with crusty bread" or "garnish with parsley", include those items in the ingredients so the user can buy them. Use amounts like "1 loaf" for bread, "to garnish" for herbs, or "as needed" for optional items, and set unit to "N/A" for descriptive amounts.
+        return f"""## ROLE
+You are RecipeWizard, an expert chef and recipe creator. Generate creative, practical recipes based on user requests.
 
-REQUIRED JSON FORMAT:
+## FORMAT
+Always respond with ONLY valid JSON matching the schema below. No text before or after the JSON.
+
+## SCHEMA
 {{
   "recipe": {{
     "title": "Recipe Name",
-    "description": "Brief description",
-    "instructions": ["Step 1", "Step 2", "..."],
+    "description": "Brief description (1-2 sentences)",
+    "instructions": ["Step 1", "Step 2"],
     "prepTime": 15,
     "cookTime": 30,
     "servings": 4,
     "difficulty": "easy",
-    "tips": ["Tip 1", "Tip 2"]
+    "tips": ["Tip 1"]
   }},
   "ingredients": [
     {{
       "name": "ingredient name",
       "amount": "1",
       "unit": "cup",
-      "category": "MUST_BE_FROM_THIS_LIST: {categories_list}"
+      "category": "one of: {categories_list}"
     }}
   ]
 }}
 
-INGREDIENT MEASUREMENT RULES:
-- For measurable quantities, use specific amounts and units (e.g., "2", "cups")
-- For taste-based ingredients (salt, pepper, spices), use descriptive amounts like "to taste", "pinch", "dash" and set unit to "N/A"
-- For garnishes or optional additions, use amounts like "to garnish", "as needed" and set unit to "N/A"
-- NEVER use "N/A" as the amount - always provide a descriptive amount
+## FIELD RULES
+- `difficulty`: one of easy / medium / hard
+- `category`: MUST be one of exactly: {categories_list}
+- `amount`: always a non-empty descriptive string (e.g. "2", "to taste", "1 loaf", "to garnish")
+- `unit`: use a standard unit when measurable (e.g. "g", "cups", "cloves"); use "N/A" when the amount is already fully descriptive (e.g. "to taste", "to garnish", "as needed", "1 loaf")
+- Include ALL items mentioned in instructions, tips, or serving suggestions in the ingredients list
 
-DIFFICULTY LEVELS: easy, medium, hard"""
+## EXAMPLES
+Range quantity: amount="3" unit="cups", name="cherry tomatoes (2–4 cups, adjust to taste)"
+Optional ingredient: amount="to garnish" unit="N/A", name="fresh parsley (optional)"
+Uncountable seasoning: amount="to taste" unit="N/A", name="salt"
+Serving suggestion item: amount="1 loaf" unit="N/A", name="crusty bread"
+
+## PRIORITY ORDER
+Apply user constraints in this order (highest priority first):
+1. Hard constraints — allergens and dietary restrictions (NEVER violate these)
+2. Explicit override notes from the user's "Additional preferences" field
+3. Soft preferences — skill level, cuisine style, time limits, disliked ingredients
+
+## CONFLICT RESOLUTION
+- If a requested dish inherently contains an allergen or violates a dietary restriction, generate the closest compliant alternative and note the substitution in the description.
+- If soft preferences conflict with each other, use good culinary judgement."""
 
     def create_recipe_messages(
         self, 
@@ -109,13 +118,12 @@ DIFFICULTY LEVELS: easy, medium, hard"""
         
         system_prompt = self.create_recipe_system_prompt(user_categories)
         
-        # Build user message
-        user_message = f"Generate a recipe for: {user_prompt}"
-        
+        user_message = f"## USER REQUEST\n{user_prompt}"
+
         if user_preferences:
             user_message += user_preferences
-        
-        user_message += "\n\nGenerate a recipe that matches the request with ONLY valid JSON response:"
+
+        user_message += "\n\nRespond with ONLY valid JSON:"
         
         return [
             {"role": "system", "content": system_prompt},
@@ -126,22 +134,27 @@ DIFFICULTY LEVELS: easy, medium, hard"""
         """Get thematic retry message for user feedback"""
         messages = {
             'format': [
-                'Adjusting the recipe format...',
-                'Fine-tuning the ingredients...',
-                'Perfecting the recipe structure...'
+                'Refining the recipe structure...',
+                'Correcting the ingredient format...',
+                'Finalising recipe details...'
             ],
             'categories': [
-                'Organizing the grocery list...',
+                'Organising the grocery list...',
                 'Sorting ingredients by aisle...',
-                'Categorizing items for shopping...'
+                'Categorising items for shopping...'
+            ],
+            'compliance': [
+                'Adjusting recipe for your dietary needs...',
+                'Substituting ingredients to meet your requirements...',
+                'Ensuring the recipe meets your preferences...'
             ],
             'validation': [
                 'Adding final touches...',
                 'Checking recipe details...',
-                'Ensuring everything is perfect...'
+                'Ensuring everything is complete...'
             ]
         }
-        
+
         message_list = messages.get(error_type, messages['validation'])
         return message_list[min(attempt - 1, len(message_list) - 1)]
     
@@ -169,30 +182,35 @@ DIFFICULTY LEVELS: easy, medium, hard"""
     def _validate_recipe_data(self, data: Dict) -> tuple[bool, str]:
         """Basic validation - return (is_valid, error_type)"""
         try:
-            # Check required top-level keys
             if 'recipe' not in data or 'ingredients' not in data:
                 return False, 'format'
-            
+
             recipe = data['recipe']
             ingredients = data['ingredients']
-            
-            # Check recipe has required fields
-            if not isinstance(recipe, dict) or 'title' not in recipe or 'instructions' not in recipe:
+
+            if not isinstance(recipe, dict):
                 return False, 'format'
-            
-            # Check ingredients format
+            if not recipe.get('title') or not isinstance(recipe['title'], str):
+                return False, 'format'
+            if 'instructions' not in recipe:
+                return False, 'format'
+            instructions = recipe['instructions']
+            if not isinstance(instructions, (list, str)):
+                return False, 'format'
+            if isinstance(instructions, list) and len(instructions) == 0:
+                return False, 'format'
+            if isinstance(instructions, str) and not instructions.strip():
+                return False, 'format'
+
             if not isinstance(ingredients, list) or len(ingredients) == 0:
                 return False, 'format'
-            
+
             for ing in ingredients:
                 if not isinstance(ing, dict) or 'name' not in ing or 'amount' not in ing or 'category' not in ing:
                     return False, 'format'
-            
-            # Skip ingredient cross-reference validation - too strict for real-world recipes
-            # Recipes can mention items like "serve with bread" without requiring bread in grocery list
-            
+
             return True, ''
-            
+
         except Exception:
             return False, 'format'
 
@@ -300,7 +318,77 @@ DIFFICULTY LEVELS: easy, medium, hard"""
             return missing
         except Exception:
             return []
-    
+
+    def _check_preference_compliance(
+        self,
+        recipe_data: Dict,
+        preferences: Optional[Dict],
+    ) -> Optional[str]:
+        """Scan generated recipe for hard-constraint violations.
+
+        Returns a targeted error string to append to the retry message if a
+        violation is found, or None when the recipe looks compliant.
+        Only checks allergens and dietary restrictions (hard constraints).
+        False positives are acceptable; false negatives are not.
+        """
+        if not preferences:
+            return None
+
+        split = self._split_preferences(preferences)
+        allergens = [a.lower() for a in split["hard_allergens"]]
+        dietary = [d.lower() for d in split["hard_dietary"]]
+
+        DIETARY_FORBIDDEN: Dict[str, List[str]] = {
+            "vegan": ["meat", "chicken", "beef", "pork", "lamb", "fish", "seafood",
+                      "shrimp", "prawn", "tuna", "salmon", "bacon", "ham", "turkey",
+                      "milk", "cream", "butter", "cheese", "yogurt", "egg", "eggs",
+                      "honey", "gelatin", "lard", "ghee", "whey", "casein"],
+            "vegetarian": ["meat", "chicken", "beef", "pork", "lamb", "fish", "seafood",
+                           "shrimp", "prawn", "tuna", "salmon", "bacon", "ham", "turkey",
+                           "lard", "gelatin"],
+            "gluten-free": ["wheat", "flour", "bread", "pasta", "noodle", "barley",
+                            "rye", "semolina", "couscous", "bulgur", "spelt", "farro",
+                            "breadcrumb", "soy sauce", "teriyaki"],
+            "dairy-free": ["cow's milk", "whole milk", "skim milk", "heavy cream",
+                           "sour cream", "butter", "cheese", "yogurt", "whey",
+                           "casein", "ghee", "lactose", "half and half", "buttermilk"],
+            "nut-free": ["almond", "cashew", "walnut", "pecan", "pistachio", "hazelnut",
+                         "macadamia", "peanut", "pine nut", "nut"],
+            "halal": ["pork", "bacon", "ham", "lard", "gelatin", "alcohol", "wine",
+                      "beer", "spirits"],
+            "kosher": ["pork", "bacon", "ham", "lard", "shellfish", "shrimp", "lobster",
+                       "crab", "clam", "oyster"],
+        }
+
+        try:
+            ingredients = recipe_data.get("ingredients", [])
+            ing_names_lower = [str(ing.get("name", "")).lower() for ing in ingredients]
+
+            violations: List[str] = []
+
+            for diet in dietary:
+                forbidden = DIETARY_FORBIDDEN.get(diet, [])
+                for kw in forbidden:
+                    for name in ing_names_lower:
+                        if kw in name:
+                            violations.append(f"{name!r} violates {diet} restriction")
+                            break
+
+            for allergen in allergens:
+                for name in ing_names_lower:
+                    if allergen in name:
+                        violations.append(f"{name!r} contains allergen {allergen!r}")
+                        break
+
+            if violations:
+                return ("The recipe violates hard constraints: " +
+                        "; ".join(violations) +
+                        ". Remove or substitute these ingredients so the recipe complies.")
+            return None
+
+        except Exception:
+            return None
+
     async def generate_recipe(
         self, 
         request: RecipeGenerationRequest, 
@@ -362,8 +450,21 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                     # Parse and validate JSON
                     recipe_data = json.loads(cleaned_text)
                     is_valid, error_type = self._validate_recipe_data(recipe_data)
-                    
-                    # Store this attempt for fallback
+
+                    if is_valid:
+                        # Check hard-constraint compliance before accepting
+                        compliance_error = self._check_preference_compliance(
+                            recipe_data, request.preferences
+                        )
+                        if compliance_error and attempt < max_retries:
+                            logger.warning(
+                                f"Attempt {attempt} passed structure but failed compliance, retrying: {compliance_error}"
+                            )
+                            error_type = 'compliance'
+                            messages.append({"role": "assistant", "content": cleaned_text})
+                            messages.append({"role": "user", "content": compliance_error})
+
+                    # Store this attempt for fallback (reflects updated error_type if compliance failed)
                     final_attempt = {
                         'recipe_data': recipe_data,
                         'generation_time_ms': generation_time,
@@ -374,8 +475,8 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                         'retry_count': attempt - 1,
                         'retry_message': self._get_retry_message(attempt, error_type) if attempt > 1 else None
                     }
-                    
-                    if is_valid:
+
+                    if is_valid and error_type != 'compliance':
                         # Add default values for optional fields
                         recipe = recipe_data['recipe']
                         recipe.setdefault('description', '')
@@ -384,23 +485,52 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                         recipe.setdefault('servings', 4)
                         recipe.setdefault('difficulty', 'medium')
                         recipe.setdefault('tips', [])
-                        
+
                         # Ensure instructions is a list
                         if isinstance(recipe['instructions'], str):
                             recipe['instructions'] = [recipe['instructions']]
-                        
+
                         # Add default unit for ingredients
                         for ing in recipe_data['ingredients']:
                             ing.setdefault('unit', '')
-                        
+
                         return final_attempt
-                    else:
-                        # Invalid format or validation - let it retry with helpful guidance  
+                    elif error_type == 'compliance' and attempt < max_retries:
+                        # Compliance retry message already appended above
+                        continue
+                    elif error_type == 'compliance' and attempt == max_retries:
+                        # Final compliance failure — return recipe with defaults applied
+                        logger.warning(f"Returning final attempt ({attempt}) despite compliance issues")
+                        recipe = recipe_data.get('recipe', {})
+                        recipe.setdefault('title', 'Generated Recipe')
+                        recipe.setdefault('description', '')
+                        recipe.setdefault('instructions', ['Follow recipe steps'])
+                        recipe.setdefault('prepTime', None)
+                        recipe.setdefault('cookTime', None)
+                        recipe.setdefault('servings', 4)
+                        recipe.setdefault('difficulty', 'medium')
+                        recipe.setdefault('tips', [])
+
+                        # Ensure instructions is a list
+                        if isinstance(recipe['instructions'], str):
+                            recipe['instructions'] = [recipe['instructions']]
+
+                        # Add default unit for ingredients
+                        ingredients = recipe_data.get('ingredients', [])
+                        for ing in ingredients:
+                            ing.setdefault('unit', '')
+                            ing.setdefault('name', 'Ingredient')
+                            ing.setdefault('amount', '1')
+                            ing.setdefault('category', 'pantry')
+
+                        return final_attempt
+                    elif error_type != 'compliance':
+                        # Invalid format — retry with guidance
                         if attempt < max_retries:
                             logger.warning(f"Attempt {attempt} failed validation ({error_type}), retrying...")
                             detailed_retry = f"Previous response had {error_type} issues. Please fix and provide only valid JSON."
                             if error_type == 'validation':
-                                detailed_retry += " Please ensure the recipe format is correct and all required fields are present."
+                                detailed_retry += " Ensure the recipe format is correct and all required fields are present."
                             messages.append({"role": "assistant", "content": cleaned_text})
                             messages.append({"role": "user", "content": detailed_retry})
                             continue
@@ -417,11 +547,11 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                             recipe.setdefault('servings', 4)
                             recipe.setdefault('difficulty', 'medium')
                             recipe.setdefault('tips', [])
-                            
+
                             # Ensure instructions is a list
                             if isinstance(recipe['instructions'], str):
                                 recipe['instructions'] = [recipe['instructions']]
-                            
+
                             # Add default unit for ingredients
                             ingredients = recipe_data.get('ingredients', [])
                             for ing in ingredients:
@@ -429,7 +559,7 @@ DIFFICULTY LEVELS: easy, medium, hard"""
                                 ing.setdefault('name', 'Ingredient')
                                 ing.setdefault('amount', '1')
                                 ing.setdefault('category', 'pantry')
-                            
+
                             return final_attempt
                 
                 except json.JSONDecodeError as e:
@@ -458,44 +588,75 @@ DIFFICULTY LEVELS: easy, medium, hard"""
             logger.error(f"Recipe generation failed: {e}")
             raise RuntimeError(f"Recipe generation failed: {str(e)}")
     
+    def _split_preferences(self, preferences: Dict) -> Dict[str, Any]:
+        """Categorise a preferences dict into hard constraints and soft preferences.
+
+        Returns a dict with keys:
+          hard_allergens        — list[str]
+          hard_dietary          — list[str]
+          soft_difficulty       — str | None
+          soft_servings         — int | None
+          soft_max_cook_time    — int | None
+          soft_max_prep_time    — int | None
+          soft_units            — str | None
+          soft_dislikes         — list[str]
+          override_notes        — str | None  (additionalPreferences)
+        """
+        return {
+            "hard_allergens": preferences.get("allergens") or [],
+            "hard_dietary": preferences.get("dietaryRestrictions") or [],
+            "soft_difficulty": preferences.get("preferredDifficulty"),
+            "soft_servings": preferences.get("defaultServings"),
+            "soft_max_cook_time": preferences.get("maxCookTime"),
+            "soft_max_prep_time": preferences.get("maxPrepTime"),
+            "soft_units": preferences.get("units"),
+            "soft_dislikes": preferences.get("dislikes") or [],
+            "override_notes": (preferences.get("additionalPreferences") or "").strip() or None,
+        }
+
     def _generate_preference_context_from_request(self, preferences: Dict) -> str:
-        """Generate comprehensive preference context for LLM - let LLM handle all processing"""
-        context = []
-        
-        # Basic preferences
-        if preferences.get('units'):
-            unit_desc = 'kg, g, ml, l, °C' if preferences['units'] == 'metric' else 'lbs, oz, cups, tablespoons, °F'
-            context.append(f"Units: {preferences['units']} measurements ({unit_desc})")
-        
-        if preferences.get('defaultServings'):
-            context.append(f"Servings: {preferences['defaultServings']} people")
-        
-        if preferences.get('preferredDifficulty'):
-            context.append(f"Difficulty: {preferences['preferredDifficulty']}")
-        
-        # Time constraints
-        if preferences.get('maxCookTime'):
-            context.append(f"Max cooking time: {preferences['maxCookTime']} minutes")
-        if preferences.get('maxPrepTime'):
-            context.append(f"Max prep time: {preferences['maxPrepTime']} minutes")
-        
-        # Dietary restrictions
-        if preferences.get('dietaryRestrictions') and len(preferences['dietaryRestrictions']) > 0:
-            context.append(f"Dietary requirements: {', '.join(preferences['dietaryRestrictions'])}")
-        
-        # Allergens (high priority)
-        if preferences.get('allergens') and len(preferences['allergens']) > 0:
-            context.append(f"AVOID ALLERGENS: {', '.join(preferences['allergens'])}")
-        
-        # Dislikes
-        if preferences.get('dislikes') and len(preferences['dislikes']) > 0:
-            context.append(f"Avoid ingredients: {', '.join(preferences['dislikes'])}")
-        
-        # Additional preferences (HIGHEST PRIORITY - placed at end)
-        if preferences.get('additionalPreferences') and preferences['additionalPreferences'].strip():
-            context.append(f"ADDITIONAL PREFERENCES (override other settings if needed): {preferences['additionalPreferences'].strip()}")
-        
-        return f"\n\nUser Preferences:\n" + "\n".join(f"• {item}" for item in context) if context else ""
+        """Build a structured preference block for the LLM user message."""
+        split = self._split_preferences(preferences)
+        sections: List[str] = []
+
+        # --- Hard constraints ---
+        hard_lines: List[str] = []
+        if split["hard_allergens"]:
+            hard_lines.append(f"ALLERGENS TO AVOID: {', '.join(split['hard_allergens'])}")
+        if split["hard_dietary"]:
+            hard_lines.append(f"Dietary restrictions: {', '.join(split['hard_dietary'])}")
+        if hard_lines:
+            sections.append("### Hard constraints (MUST follow — never violate)\n" +
+                            "\n".join(f"• {l}" for l in hard_lines))
+
+        # --- Override notes ---
+        if split["override_notes"]:
+            sections.append(f"### Additional preferences (override soft settings if needed)\n"
+                            f"• {split['override_notes']}")
+
+        # --- Soft preferences ---
+        soft_lines: List[str] = []
+        if split["soft_units"]:
+            unit_desc = "kg, g, ml, l, °C" if split["soft_units"] == "metric" else "lbs, oz, cups, tablespoons, °F"
+            soft_lines.append(f"Units: {split['soft_units']} ({unit_desc})")
+        if split["soft_servings"]:
+            soft_lines.append(f"Servings: {split['soft_servings']} people")
+        if split["soft_difficulty"]:
+            soft_lines.append(f"Difficulty: {split['soft_difficulty']}")
+        if split["soft_max_cook_time"]:
+            soft_lines.append(f"Max cook time: {split['soft_max_cook_time']} minutes")
+        if split["soft_max_prep_time"]:
+            soft_lines.append(f"Max prep time: {split['soft_max_prep_time']} minutes")
+        if split["soft_dislikes"]:
+            soft_lines.append(f"Avoid ingredients: {', '.join(split['soft_dislikes'])}")
+        if soft_lines:
+            sections.append("### Soft preferences (follow where possible)\n" +
+                            "\n".join(f"• {l}" for l in soft_lines))
+
+        if not sections:
+            return ""
+
+        return "\n\n## USER PROFILE\n" + "\n\n".join(sections)
     
     def create_recipe_modification_system_prompt(self, user_categories: Optional[List[str]] = None) -> str:
         """Create the system prompt for recipe modification"""

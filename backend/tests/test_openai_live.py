@@ -86,3 +86,31 @@ class TestLiveOpenAI:
             assert idea["title"]
             assert idea["description"]
             assert "id" in idea
+
+    async def test_vegetarian_compliance(self, user_factory):
+        """Generated recipe must not contain meat when vegetarian restriction is set."""
+        MEAT_KEYWORDS = [
+            "chicken", "beef", "pork", "lamb", "turkey", "bacon", "ham",
+            "fish", "salmon", "tuna", "shrimp", "prawn", "seafood", "sausage",
+        ]
+        from app.schemas import RecipeGenerationRequest
+        request = RecipeGenerationRequest(
+            prompt="a hearty pasta dish for 4 people",
+            preferences={
+                "dietaryRestrictions": ["vegetarian"],
+                "groceryCategories": [
+                    "produce", "dry-goods", "dairy", "pantry", "chilled",
+                    "spices", "bakery", "butchery", "frozen", "beverages",
+                ],
+            },
+        )
+        result = await openai_service.generate_recipe(request)
+        data = result["recipe_data"]
+        ing_names = [ing["name"].lower() for ing in data["ingredients"]]
+        violations = [
+            name for name in ing_names
+            if any(kw in name for kw in MEAT_KEYWORDS)
+        ]
+        assert not violations, (
+            f"Vegetarian recipe contained meat ingredients: {violations}"
+        )

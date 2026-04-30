@@ -45,8 +45,27 @@ class TestGenerate:
         ingredients = db_session.query(RecipeIngredient).filter_by(recipe_id=saved[0].id).all()
         assert len(ingredients) == 5
 
-    def test_generate_uses_request_preferences(self, client, auth_headers, fake_openai):
+    def test_generate_uses_request_preferences(self, client, auth_headers, patch_openai_factory):
         """Prompt building must pick up mobile-supplied preferences."""
+        # Use a vegetarian-compliant payload so compliance check passes on first attempt
+        vegetarian_payload = {
+            "recipe": {
+                "title": "Vegetarian Pasta",
+                "description": "Quick and easy",
+                "instructions": ["Cook pasta", "Mix sauce"],
+                "prepTime": 10,
+                "cookTime": 15,
+                "servings": 2,
+                "difficulty": "easy",
+                "tips": [],
+            },
+            "ingredients": [
+                {"name": "Pasta", "amount": "200", "unit": "g", "category": "pantry"},
+                {"name": "Tomato sauce", "amount": "1", "unit": "cup", "category": "pantry"},
+                {"name": "Garlic", "amount": "2", "unit": "cloves", "category": "produce"},
+            ],
+        }
+        fake = patch_openai_factory(recipe_payload=vegetarian_payload)
         response = client.post(
             "/api/recipes/generate",
             headers=auth_headers,
@@ -63,9 +82,9 @@ class TestGenerate:
             },
         )
         assert response.status_code == 200
-        # Inspect the actual message sent to OpenAI
-        assert len(fake_openai.calls) == 1
-        messages = fake_openai.calls[0]["messages"]
+        # Inspect the actual message sent to OpenAI — should only need 1 call
+        assert len(fake.calls) == 1
+        messages = fake.calls[0]["messages"]
         user_msg = messages[-1]["content"]
         system_msg = messages[0]["content"]
         assert "produce, dairy, pantry" in system_msg  # grocery categories injected
