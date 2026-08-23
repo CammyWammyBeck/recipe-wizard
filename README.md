@@ -19,11 +19,11 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 ### Advanced Features ✅ **IMPLEMENTED**
 - **Tab Navigation**: Intuitive bottom tab bar with four core sections
 - **Shopping List Management**: Dedicated tab with drag-to-reorder and smart categorization
-- **Profile Management**: Complete user settings and preferences
+- **Profile Management**: Settings hub with dedicated detail screens for dietary restrictions, allergens, grocery categories, and AI personalization
 - **Measurement Units**: Metric/Imperial conversion support
 - **Dietary Restrictions**: Vegetarian, vegan, gluten-free, allergen management
 - **Recipe Customization**: Default servings, difficulty preferences
-- **Grocery Categories**: Customizable ingredient organization with drag-and-drop
+- **Grocery Categories**: Customizable ingredient organization, reorderable by drag handle or arrow controls
 - **Dark/Light Theme**: System-aware theme with manual toggle
 - **Offline Support**: Local storage for preferences and saved recipes
 - **Real-time Sync**: Authentication context with persistent login state
@@ -193,26 +193,35 @@ RecipeWizard/
 │   │   │   ├── prompt.tsx    # Recipe input screen (tab)
 │   │   │   ├── history.tsx   # Recipe history with saved favorites
 │   │   │   ├── shopping-list.tsx # Dedicated shopping list management ✅ NEW
-│   │   │   └── profile.tsx   # User settings & preferences
+│   │   │   └── profile.tsx   # Settings hub (identity + grouped rows)
+│   │   ├── settings/         # Settings detail screens
+│   │   │   ├── account.tsx      # Identity, sign out, delete account
+│   │   │   ├── dietary.tsx      # Dietary restrictions checklist
+│   │   │   ├── allergens.tsx    # Allergens checklist
+│   │   │   ├── categories.tsx   # Grocery category reorder editor
+│   │   │   ├── instructions.tsx # Free-text AI personalization
+│   │   │   └── about.tsx        # Privacy, support, version
 │   │   └── auth/             # Authentication screens
 │   │       ├── signin.tsx    # User sign-in
 │   │       └── signup.tsx    # User registration
-│   ├── components/           # Complete UI component library (12+ components)
+│   ├── components/           # Complete UI component library
 │   │   ├── Button.tsx        # Multi-variant button
 │   │   ├── TextInput.tsx     # Performance-optimized input
 │   │   ├── ExpandableCard.tsx# Collapsible sections
-│   │   ├── SavedRecipesSection.tsx ✅ NEW
-│   │   ├── AllHistorySection.tsx   ✅ NEW
+│   │   ├── SavedRecipesSection.tsx
+│   │   ├── AllHistorySection.tsx
 │   │   ├── CheckboxItem.tsx  # Interactive grocery list items
+│   │   ├── settings/         # SettingsSection / SettingsRow /
+│   │   │                     # SelectionGroup / SettingsScreen / ChecklistEditor
 │   │   └── ...               # Additional specialized components
-│   ├── contexts/             # React context providers ✅ NEW
-│   │   └── AuthContext.tsx   # Authentication state management
+│   ├── contexts/             # React context providers
+│   │   ├── AuthContext.tsx   # Authentication state management
+│   │   └── PreferencesContext.tsx # Shared preferences + debounced autosave
 │   ├── constants/            # Theme system and configuration
 │   ├── services/             # Complete API client services
 │   │   ├── api.ts           # Main API service
 │   │   ├── auth.ts          # Authentication services
-│   │   ├── preferences.ts   # User preferences management ✅ NEW
-│   │   └── savedRecipes.ts  # Recipe saving functionality ✅ NEW
+│   │   └── preferences.ts   # User preferences persistence + backend sync
 │   ├── types/                # Complete TypeScript definitions
 │   │   ├── api.ts           # API types
 │   │   └── recipe.ts        # Recipe-specific types
@@ -306,7 +315,7 @@ Design mockups are available in the `design/examples/` folder.
 - [x] Comprehensive user profile and preferences management
 - [x] Advanced dietary restrictions and allergen management
 - [x] Measurement unit preferences (metric/imperial) with real-time conversion
-- [x] Customizable grocery categories with drag-to-reorder
+- [x] Customizable grocery categories with drag-to-reorder (plus arrow controls for accessibility)
 - [x] AI personalization with additional preferences text input
 - [x] Recipe saving and unsaving with instant visual feedback
 - [x] Authentication context with persistent login state and auto-refresh
