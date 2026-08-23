@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, RefreshControl, TouchableOpacity, TextInput as RNTextInput } from 'react-native';
 import { Text, Portal, Dialog, Button, Menu } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../constants/ThemeProvider';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { ShoppingListItem, SavedRecipeData } from '../../types/api';
+import { ShoppingListItem, SavedRecipeData, DEFAULT_GROCERY_CATEGORIES } from '../../types/api';
 import { apiService } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,7 +20,14 @@ import { PreferencesService } from '../../services/preferences';
 import { CategorySection } from '../../components/shopping/CategorySection';
 import { ShoppingListRow } from '../../components/shopping/ShoppingListRow';
 import { AddManualItemSheet } from '../../components/shopping/AddManualItemSheet';
-import { getCategoryColor } from '../../constants/categories';
+import { RecipesInListSheet } from '../../components/shopping/RecipesInListSheet';
+import { getCategoryColor, sortCategoriesByPreference } from '../../constants/categories';
+import {
+  applyPendingChecks,
+  clearPendingChecks,
+  flushPendingChecks,
+  queueCheck,
+} from '../../services/shoppingListSync';
 
 const COLLAPSED_CATEGORIES_KEY = '@RecipeWizard:collapsedShoppingCategories';
 
@@ -42,7 +49,13 @@ export default function ShoppingListScreen() {
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipeData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [addSheetVisible, setAddSheetVisible] = useState(false);
+  const [recipesSheetVisible, setRecipesSheetVisible] = useState(false);
   const [groceryCategories, setGroceryCategories] = useState<string[]>([]);
+
+  // Gates the full-screen loading state to a genuine first load (see H2 in
+  // loadShoppingList). Reset when the account changes, since the next list
+  // belongs to someone else.
+  const hasLoadedOnce = useRef(false);
 
   // Load persisted collapsed-category state
   useEffect(() => {
@@ -73,7 +86,13 @@ export default function ShoppingListScreen() {
     return acc;
   }, {} as Record<string, ShoppingListItem[]>);
 
-  const categories = Object.keys(itemsByCategory).sort();
+  // Follow the user's own category order — walk order is the whole reason to
+  // group a grocery list. Falls back to the shipped default until preferences
+  // have loaded, which is still a sensible route through a supermarket.
+  const categories = sortCategoriesByPreference(
+    Object.keys(itemsByCategory),
+    groceryCategories.length > 0 ? groceryCategories : [...DEFAULT_GROCERY_CATEGORIES]
+  );
   const totalItems = shoppingList.length;
   const completedItems = shoppingList.filter(item => item.isChecked).length;
   const checkedCount = shoppingList.filter(item => item.isChecked).length;
@@ -143,24 +162,29 @@ export default function ShoppingListScreen() {
     );
     setShoppingList(updatedItems);
 
-    if (isOnline) {
-      try {
-        const item = updatedItems.find(i => i.id === itemId);
-        if (item) {
-          await apiService.updateShoppingListItem(itemId, item.isChecked);
-        }
-      } catch (error) {
-        console.error('Error syncing item check status:', error);
-        setShoppingList(prev => prev.map(item =>
-          item.id === itemId ? { ...item, isChecked: !item.isChecked } : item
-        ));
-      }
-    }
+    const item = updatedItems.find(i => i.id === itemId);
+    if (!item) return;
 
     try {
       await AsyncStorage.setItem('cached_shopping_list', JSON.stringify(updatedItems));
     } catch (error) {
       console.error('Error updating cached shopping list:', error);
+    }
+
+    // Offline, or the request failed: park the toggle so it survives a refetch
+    // and a cold start, and replay it once we're back on the network. Never
+    // roll the row back — the user's tick is the source of truth until it
+    // reaches the server.
+    if (!isOnline) {
+      await queueCheck(itemId, item.isChecked);
+      return;
+    }
+
+    try {
+      await apiService.updateShoppingListItem(itemId, item.isChecked);
+    } catch (error) {
+      console.error('Error syncing item check status:', error);
+      await queueCheck(itemId, item.isChecked);
     }
   };
 
@@ -217,6 +241,8 @@ export default function ShoppingListScreen() {
 
       setShoppingList([]);
       await AsyncStorage.removeItem('cached_shopping_list');
+      // Every item the queue could refer to is gone.
+      await clearPendingChecks();
     } catch (error) {
       console.error('Error clearing shopping list:', error);
       toast.show('Failed to clear shopping list. Please try again.', { variant: 'error' });
@@ -242,6 +268,8 @@ export default function ShoppingListScreen() {
     if (user) {
       loadShoppingList();
     } else {
+      hasLoadedOnce.current = false;
+      setShoppingList([]);
       setLoading(false);
     }
   }, [user]);
@@ -254,20 +282,52 @@ export default function ShoppingListScreen() {
     }, [isOnline, user])
   );
 
+  // Coming back onto the network is the moment queued check-offs should land,
+  // rather than waiting for the user to navigate away and back.
+  useEffect(() => {
+    if (!user || !isOnline) return;
+
+    let cancelled = false;
+    flushPendingChecks()
+      .then(sentAnything => {
+        if (sentAnything && !cancelled) {
+          loadShoppingList();
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnline, user]);
+
   const loadShoppingList = async () => {
     try {
-      setLoading(true);
+      // Only the very first load blanks the screen. Focus refetches and
+      // pull-to-refresh update in place — replacing a list the user is
+      // reading with a spinner every time they switch tabs is worse than a
+      // few seconds of slightly stale data.
+      if (!hasLoadedOnce.current) {
+        setLoading(true);
+      }
 
       if (isOnline) {
+        // Send anything ticked off while offline before reading the list back,
+        // otherwise the server's stale view would overwrite it.
+        await flushPendingChecks();
+
         const [shoppingResponse, savedRecipesData] = await Promise.all([
           apiService.getShoppingList(),
           apiService.getSavedRecipes().catch(() => [])
         ]);
 
-        setShoppingList(shoppingResponse.items);
+        // Whatever couldn't be flushed still wins over the server's copy.
+        const items = await applyPendingChecks(shoppingResponse.items);
+
+        setShoppingList(items);
         setSavedRecipes(savedRecipesData);
 
-        await AsyncStorage.setItem('cached_shopping_list', JSON.stringify(shoppingResponse.items));
+        await AsyncStorage.setItem('cached_shopping_list', JSON.stringify(items));
         await AsyncStorage.setItem('cached_saved_recipes', JSON.stringify(savedRecipesData));
       } else {
         const [cachedShoppingList, cachedSavedRecipes] = await Promise.all([
@@ -276,7 +336,7 @@ export default function ShoppingListScreen() {
         ]);
 
         if (cachedShoppingList) {
-          setShoppingList(JSON.parse(cachedShoppingList));
+          setShoppingList(await applyPendingChecks(JSON.parse(cachedShoppingList)));
         }
         if (cachedSavedRecipes) {
           setSavedRecipes(JSON.parse(cachedSavedRecipes));
@@ -292,7 +352,7 @@ export default function ShoppingListScreen() {
         ]);
 
         if (cachedShoppingList) {
-          setShoppingList(JSON.parse(cachedShoppingList));
+          setShoppingList(await applyPendingChecks(JSON.parse(cachedShoppingList)));
         }
         if (cachedSavedRecipes) {
           setSavedRecipes(JSON.parse(cachedSavedRecipes));
@@ -301,6 +361,7 @@ export default function ShoppingListScreen() {
         console.error('Error loading cached data:', cacheError);
       }
     } finally {
+      hasLoadedOnce.current = true;
       setLoading(false);
     }
   };
@@ -459,11 +520,16 @@ export default function ShoppingListScreen() {
           fontSize: theme.typography.fontSize.bodyLarge,
           color: theme.colors.theme.textSecondary,
           textAlign: 'center',
-          lineHeight: 24
+          lineHeight: 24,
+          marginBottom: 24,
         }}
       >
-        Add recipes to your shopping list from the recipe screen to get started!
+        Add a recipe from the recipe screen to pull in all its ingredients at once, or add
+        something to the list yourself.
       </Text>
+      <Button mode="contained" icon="plus" onPress={() => setAddSheetVisible(true)}>
+        Add an item
+      </Button>
     </View>
   );
 
@@ -500,23 +566,38 @@ export default function ShoppingListScreen() {
                   style={{ marginRight: 16 }}
                 />
               )}
-              <TouchableOpacity onPress={() => setAddSheetVisible(true)} style={{ marginRight: 16 }}>
-                <MaterialCommunityIcons name="plus-circle-outline" size={24} color={theme.colors.theme.textSecondary} />
+              <TouchableOpacity
+                onPress={() => setAddSheetVisible(true)}
+                accessibilityLabel="Add an item to the shopping list"
+                style={{ marginRight: 16 }}
+              >
+                <MaterialCommunityIcons name="plus-circle-outline" size={24} color={theme.colors.wizard.primary} />
               </TouchableOpacity>
               {shoppingList.length > 0 && (
                 <Menu
                   visible={menuVisible}
                   onDismiss={() => setMenuVisible(false)}
                   anchor={
-                    <TouchableOpacity onPress={() => setMenuVisible(true)}>
+                    <TouchableOpacity
+                      onPress={() => setMenuVisible(true)}
+                      accessibilityLabel="Shopping list options"
+                    >
                       <MaterialCommunityIcons
-                        name="delete-sweep"
+                        name="dots-vertical"
                         size={24}
                         color={theme.colors.theme.textSecondary}
                       />
                     </TouchableOpacity>
                   }
                 >
+                  <Menu.Item
+                    onPress={() => {
+                      setMenuVisible(false);
+                      setRecipesSheetVisible(true);
+                    }}
+                    title="Recipes in this list"
+                    leadingIcon="chef-hat"
+                  />
                   <Menu.Item
                     onPress={() => {
                       setMenuVisible(false);
@@ -664,6 +745,16 @@ export default function ShoppingListScreen() {
           categories={groceryCategories.length > 0 ? groceryCategories : ['pantry']}
           onDismiss={() => setAddSheetVisible(false)}
           onSubmit={handleAddManualItem}
+        />
+
+        <RecipesInListSheet
+          visible={recipesSheetVisible}
+          onDismiss={() => setRecipesSheetVisible(false)}
+          onRemoved={(recipeTitle) => {
+            toast.show(`Removed "${recipeTitle}" from your list`, { variant: 'success' });
+            loadShoppingList();
+          }}
+          onError={(message) => toast.show(message, { variant: 'error' })}
         />
       </SafeAreaView>
   );

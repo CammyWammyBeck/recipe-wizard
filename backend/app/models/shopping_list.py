@@ -16,7 +16,15 @@ class ShoppingList(BaseModel):
 
     # Relationships
     user = relationship("User", back_populates="shopping_lists")
-    items = relationship("ShoppingListItem", back_populates="shopping_list", cascade="all, delete-orphan")
+    # Explicitly ordered: without this, row order is whatever Postgres returns,
+    # and an UPDATE (checking an item off) can move the row in the heap — so
+    # ticking something could reorder the list under the user's thumb.
+    items = relationship(
+        "ShoppingListItem",
+        back_populates="shopping_list",
+        cascade="all, delete-orphan",
+        order_by="ShoppingListItem.category, ShoppingListItem.ingredient_name",
+    )
 
     def __repr__(self):
         return f"<ShoppingList(id={self.id}, user_id={self.user_id}, name='{self.name}')>"

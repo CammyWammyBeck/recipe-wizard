@@ -1,9 +1,21 @@
 """Hand-rolled unit parsing/conversion for shopping list consolidation.
 
 Deliberately not using `pint` — we only need ~20 units and pint is too heavy
-for a Heroku dyno running alongside the rest of the app. Supports summing
-volume and weight quantities and rendering the total in either the metric
-or imperial unit system, per-user (see `User.units`).
+for a Heroku dyno running alongside the rest of the app.
+
+Summing rules (see `sum_quantities`):
+
+1. Quantities are bucketed by what they measure: counts (no unit), volume,
+   weight, and one bucket per unrecognised unit word ("cloves", "slices").
+2. Within volume/weight, if every contribution comes from the *same*
+   measurement system, the total is rendered in that system — the user's
+   `units` preference is NOT applied. Recipes are already generated in the
+   user's preferred system (see the mobile PreferencesService context
+   builder), so converting a consistent set only mangles it: two recipes
+   asking for "1 cup" and "1/2 cup" must read "1 1/2 cups", never "354.9 ml".
+3. The `units` preference is the tie-breaker for genuinely mixed input only
+   (e.g. "200 g" + "1 lb"), which is the one case where something has to give.
+4. Buckets that can't be combined are joined with " + " rather than faked.
 """
 import re
 from dataclasses import dataclass
@@ -54,9 +66,43 @@ _WEIGHT_TO_G = {
     "lb": 453.6,
 }
 
+# Which measurement system each known unit belongs to. Drives rule 2 above.
+_UNIT_SYSTEM: Dict[str, UnitSystem] = {
+    "ml": "metric", "l": "metric",
+    "g": "metric", "kg": "metric",
+    "cup": "imperial", "tbsp": "imperial", "tsp": "imperial", "floz": "imperial",
+    "oz": "imperial", "lb": "imperial",
+}
+
+# Canonical units written as whole words, so they take an "s" in the plural.
+# Abbreviations (g, kg, ml, l, oz, lb, tsp, tbsp) conventionally do not.
+_PLURALISING_UNITS = {"cup"}
+
 _NON_MEASUREMENT_WORDS = ("pinch", "to taste", "handful", "dash", "splash", "squeeze")
 
 _NUM_RE = re.compile(r"^\s*(\d+\s+\d+/\d+|\d+/\d+|\d*\.\d+|\d+)\s*(.*)$")
+
+_COUNT_KEY = "\x00count"
+
+# Largest-first ladders used when rendering a total back to text.
+# floz is accepted on input but never emitted — home cooks don't shop in it.
+_IMPERIAL_VOLUME_LADDER = (("cup", 236.6), ("tbsp", 14.79), ("tsp", 4.93))
+
+# Fraction denominators worth showing in a recipe context, smallest first.
+_FRACTION_DENOMINATORS = (2, 3, 4, 8)
+_FRACTION_TOLERANCE = 0.03
+
+# Fractional parts a recipe would actually print, used when choosing which
+# imperial unit to render a total in.
+_TIDY_FRACTIONS = (0.0, 0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1.0)
+
+# How far below 1 of a unit we'll still use that unit ("3/4 cup", not "12 tbsp").
+_MIN_UNIT_FRACTION = 0.25
+
+# Units where a running total is better expressed by stepping to the larger
+# unit (1100 g -> 1.1 kg). Imperial units don't step: the source unit is what
+# the recipe said, and stepping only introduces awkward fractions.
+_METRIC_STEPPING_UNITS = {"g", "kg", "ml", "l"}
 
 
 def _parse_number(num_str: str) -> Optional[float]:
@@ -116,6 +162,34 @@ def parse_quantity(text: str) -> Optional[ParsedQuantity]:
     return ParsedQuantity(amount=amount, unit=unit, original_text=stripped)
 
 
+def _singularize(word: str) -> str:
+    """Naive singular form, used only to group equivalent unit words together.
+
+    Correctness of the singular itself doesn't matter much — what matters is
+    that "clove" and "cloves" collapse to the same grouping key.
+    """
+    if len(word) > 3 and word.endswith(("ches", "shes", "ses", "xes")):
+        return word[:-2]
+    if len(word) > 2 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def _pluralize(word: str, amount: float) -> str:
+    # Fractions of a single unit stay singular: "3/4 cup", not "3/4 cups".
+    if amount <= 1.0 + 1e-9:
+        return word
+    if word.endswith(("ch", "sh", "s", "x")):
+        return word + "es"
+    return word + "s"
+
+
+def _unit_label(canonical_unit: str, amount: float) -> str:
+    if canonical_unit in _PLURALISING_UNITS:
+        return _pluralize(canonical_unit, amount)
+    return canonical_unit
+
+
 def _format_number(value: float) -> str:
     value = round(value, 2)
     if value == int(value):
@@ -123,78 +197,200 @@ def _format_number(value: float) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
-def _format_volume(total_ml: float, unit_system: UnitSystem) -> str:
-    if unit_system == "imperial":
-        cup_ml = _VOLUME_TO_ML["cup"]
-        floz_ml = _VOLUME_TO_ML["floz"]
-        tbsp_ml = _VOLUME_TO_ML["tbsp"]
-        tsp_ml = _VOLUME_TO_ML["tsp"]
+def _format_fraction(value: float) -> str:
+    """Render a value the way a recipe would: "1 1/2", "3/4", "2".
 
-        if total_ml >= cup_ml:
-            return f"{_format_number(total_ml / cup_ml)} cup"
-        if total_ml >= floz_ml:
-            return f"{_format_number(total_ml / floz_ml)} floz"
-        if total_ml >= tbsp_ml:
-            return f"{_format_number(total_ml / tbsp_ml)} tbsp"
-        return f"{_format_number(total_ml / tsp_ml)} tsp"
+    Snaps to the nearest fraction a cook would recognise rather than showing a
+    decimal — the eighths grid is fine enough that the error never exceeds
+    1/16 of a unit, which is well below what anyone measures when shopping.
+    """
+    whole = int(value)
+    remainder = value - whole
 
+    best_numerator = 0
+    best_denominator = 1
+    best_error = remainder  # the error if we drop the remainder entirely
+
+    for denom in _FRACTION_DENOMINATORS:
+        numerator = round(remainder * denom)
+        error = abs(remainder - numerator / denom)
+        if error < best_error - 1e-9:
+            best_numerator, best_denominator, best_error = numerator, denom, error
+
+    # Rounded up to the next whole unit.
+    if best_numerator >= best_denominator:
+        return str(whole + 1)
+
+    # Rounding away the remainder would leave nothing at all, so the value is
+    # smaller than the grid can express — keep the decimal.
+    if best_numerator == 0:
+        return str(whole) if whole else _format_number(value)
+
+    if whole:
+        return f"{whole} {best_numerator}/{best_denominator}"
+    return f"{best_numerator}/{best_denominator}"
+
+
+def _format_base_unit(total: float) -> str:
+    """Format a millilitre/gram total. Sub-unit precision is noise at shopping
+    scale, so anything from 10 up is rounded to a whole number.
+    """
+    if total >= 10:
+        return str(int(round(total)))
+    return _format_number(total)
+
+
+def _format_metric_volume(total_ml: float) -> str:
     if total_ml >= 1000:
         return f"{_format_number(total_ml / 1000)} l"
-    return f"{_format_number(total_ml)} ml"
+    return f"{_format_base_unit(total_ml)} ml"
+
+
+def _is_tidy(value: float) -> bool:
+    """True when a value lands on a fraction a recipe would actually print."""
+    remainder = value - int(value)
+    return any(abs(remainder - fraction) < 0.02 for fraction in _TIDY_FRACTIONS)
+
+
+def _format_imperial_volume(total_ml: float) -> str:
+    # A unit is worth using down to a quarter of itself — "3/4 cup" is how a
+    # recipe says it, where "12 tbsp" is not.
+    candidates = [
+        (unit, total_ml / unit_ml)
+        for unit, unit_ml in _IMPERIAL_VOLUME_LADDER
+        if total_ml >= unit_ml * _MIN_UNIT_FRACTION
+    ]
+
+    if not candidates:
+        value = total_ml / _VOLUME_TO_ML["tsp"]
+        return f"{_format_fraction(value)} tsp"
+
+    # Largest unit that divides cleanly, else the largest unit at or above 1,
+    # else the smallest candidate.
+    unit, value = next(
+        ((u, v) for u, v in candidates if _is_tidy(v)),
+        next(((u, v) for u, v in candidates if v >= 1), candidates[-1]),
+    )
+    return f"{_format_fraction(value)} {_unit_label(unit, value)}"
+
+
+def _format_metric_weight(total_g: float) -> str:
+    if total_g >= 1000:
+        return f"{_format_number(total_g / 1000)} kg"
+    return f"{_format_base_unit(total_g)} g"
+
+
+def _format_imperial_weight(total_g: float) -> str:
+    """Render weight as "1 lb 7 oz" rather than "1.44 lb" — you can't buy 1.44 lb."""
+    lb_g = _WEIGHT_TO_G["lb"]
+    oz_g = _WEIGHT_TO_G["oz"]
+
+    if total_g >= lb_g:
+        pounds = int(total_g // lb_g)
+        remainder_oz = (total_g - pounds * lb_g) / oz_g
+        if remainder_oz >= 0.1:
+            return f"{pounds} lb {_format_fraction(remainder_oz)} oz"
+        return f"{pounds} lb"
+
+    return f"{_format_fraction(total_g / oz_g)} oz"
+
+
+def _format_volume(total_ml: float, unit_system: UnitSystem) -> str:
+    if unit_system == "imperial":
+        return _format_imperial_volume(total_ml)
+    return _format_metric_volume(total_ml)
 
 
 def _format_weight(total_g: float, unit_system: UnitSystem) -> str:
     if unit_system == "imperial":
-        oz_g = _WEIGHT_TO_G["oz"]
-        lb_g = _WEIGHT_TO_G["lb"]
-        if total_g >= 16 * oz_g:
-            return f"{_format_number(total_g / lb_g)} lb"
-        return f"{_format_number(total_g / oz_g)} oz"
+        return _format_imperial_weight(total_g)
+    return _format_metric_weight(total_g)
 
-    if total_g >= 1000:
-        return f"{_format_number(total_g / 1000)} kg"
-    return f"{_format_number(total_g)} g"
+
+def _render_dimension(
+    items: List[ParsedQuantity],
+    dimension: str,
+    user_system: UnitSystem,
+) -> str:
+    """Total a set of same-dimension quantities and render them as text.
+
+    The source system wins when every contribution agrees; the user's
+    preference only breaks a genuine tie (see rules 2 and 3 in the module
+    docstring).
+    """
+    factors = _VOLUME_TO_ML if dimension == "volume" else _WEIGHT_TO_G
+
+    source_units = {item.unit for item in items}
+    total = sum(item.amount * factors[item.unit] for item in items)
+
+    # Every contribution used the same unit: say it back in that unit. Metric
+    # units are the exception — stepping g to kg reads better and stays exact.
+    if len(source_units) == 1:
+        unit = next(iter(source_units))
+        if unit not in _METRIC_STEPPING_UNITS:
+            amount = sum(item.amount for item in items)
+            return f"{_format_fraction(amount)} {_unit_label(unit, amount)}"
+
+    source_systems = {_UNIT_SYSTEM[item.unit] for item in items}
+    target_system = source_systems.pop() if len(source_systems) == 1 else user_system
+
+    if dimension == "volume":
+        return _format_volume(total, target_system)
+    return _format_weight(total, target_system)
+
+
+def _dimension_of(unit: Optional[str]) -> Optional[str]:
+    if unit is None:
+        return None
+    for dimension, units in DIMENSIONS.items():
+        if unit in units:
+            return dimension
+    return None
 
 
 def sum_quantities(quantities: List[str], unit_system: UnitSystem) -> str:
-    """Sum a list of free-text quantities, converting compatible units and
-    rendering the total for the given unit system.
+    """Sum a list of free-text quantities into a single shopping-list display.
 
-    Incompatible/unparseable amounts are joined onto the result with " + "
-    using their original text.
+    Quantities that measure the same thing are added together; anything that
+    genuinely can't be combined is joined with " + " using its original text.
+    See the module docstring for the full set of rules.
     """
-    parsed: List[ParsedQuantity] = []
+    # Grouping key -> contributions. Insertion-ordered so the rendered result
+    # follows the order the quantities arrived in.
+    groups: Dict[str, List[ParsedQuantity]] = {}
     unparsed: List[str] = []
 
-    for q in quantities:
-        pq = parse_quantity(q)
-        if pq is None:
-            unparsed.append(q)
-        else:
-            parsed.append(pq)
+    for quantity in quantities:
+        parsed = parse_quantity(quantity)
+        if parsed is None:
+            unparsed.append(quantity)
+            continue
 
-    volume_total_ml = 0.0
-    weight_total_g = 0.0
-    has_volume = False
-    has_weight = False
-    incompatible: List[str] = []
-
-    for pq in parsed:
-        if pq.unit in _VOLUME_TO_ML:
-            volume_total_ml += pq.amount * _VOLUME_TO_ML[pq.unit]
-            has_volume = True
-        elif pq.unit in _WEIGHT_TO_G:
-            weight_total_g += pq.amount * _WEIGHT_TO_G[pq.unit]
-            has_weight = True
+        dimension = _dimension_of(parsed.unit)
+        if dimension:
+            key = dimension
+        elif parsed.unit is None:
+            key = _COUNT_KEY
         else:
-            incompatible.append(pq.original_text)
+            key = f"unit:{_singularize(parsed.unit)}"
+
+        groups.setdefault(key, []).append(parsed)
 
     results: List[str] = []
-    if has_volume:
-        results.append(_format_volume(volume_total_ml, unit_system))
-    if has_weight:
-        results.append(_format_weight(weight_total_g, unit_system))
-    results.extend(incompatible)
+
+    for key, items in groups.items():
+        if key == _COUNT_KEY:
+            # Bare counts: "2" + "2" eggs is 4 eggs, not "2 + 2".
+            results.append(_format_number(sum(item.amount for item in items)))
+        elif key.startswith("unit:"):
+            # An unrecognised but self-consistent unit ("cloves", "slices").
+            # We can't convert it, but we can still add the numbers up.
+            singular = key[len("unit:"):]
+            total = sum(item.amount for item in items)
+            results.append(f"{_format_number(total)} {_pluralize(singular, total)}")
+        else:
+            results.append(_render_dimension(items, key, unit_system))
+
     results.extend(unparsed)
 
     if not results:

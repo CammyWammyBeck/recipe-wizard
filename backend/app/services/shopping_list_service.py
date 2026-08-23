@@ -13,6 +13,7 @@ from ..schemas.shopping_list import (
     UpdateShoppingListItemRequest, ClearShoppingListRequest
 )
 from . import unit_conversion
+from .ingredient_naming import normalize_ingredient_name
 
 logger = logging.getLogger(__name__)
 
@@ -92,39 +93,52 @@ class ShoppingListService:
         )
         self.db.add(recipe_association)
 
-        # Add ingredients to shopping list
+        # Build the match index once for the whole recipe rather than querying
+        # per ingredient, and keep it current as new items are created.
+        items_by_key = self._build_item_index(shopping_list)
+
         for ingredient in recipe.ingredients:
-            self._add_ingredient_to_shopping_list(
-                shopping_list, recipe, ingredient, unit_system
-            )
+            key = self._item_key(ingredient.name, ingredient.category)
+            existing_item = items_by_key.get(key)
+
+            if existing_item:
+                self._add_to_existing_item(existing_item, recipe, ingredient, unit_system)
+            else:
+                items_by_key[key] = self._create_new_shopping_item(
+                    shopping_list, recipe, ingredient
+                )
 
         self.db.commit()
         return self._get_shopping_list_response(shopping_list)
 
-    def _add_ingredient_to_shopping_list(
+    @staticmethod
+    def _item_key(ingredient_name: str, category: str) -> Tuple[str, str]:
+        """The identity two spellings of the same ingredient share.
+
+        Matching used to be exact string equality, so "Chicken breast",
+        "chicken breasts" and "chicken breast, diced" each got their own row.
+        """
+        return (normalize_ingredient_name(ingredient_name), category)
+
+    def _build_item_index(self, shopping_list: ShoppingList) -> Dict[Tuple[str, str], ShoppingListItem]:
+        index: Dict[Tuple[str, str], ShoppingListItem] = {}
+        for item in shopping_list.items:
+            # First occurrence wins, so the display name stays stable if two
+            # pre-existing rows happen to normalise together.
+            index.setdefault(self._item_key(item.ingredient_name, item.category), item)
+        return index
+
+    def _find_matching_item(
         self,
         shopping_list: ShoppingList,
-        recipe: Recipe,
-        ingredient: RecipeIngredient,
-        unit_system: str
-    ):
-        """Add or update an ingredient in the shopping list"""
-
-        # Check if ingredient already exists in shopping list
-        existing_item = self.db.query(ShoppingListItem).filter(
-            and_(
-                ShoppingListItem.shopping_list_id == shopping_list.id,
-                ShoppingListItem.ingredient_name == ingredient.name,
-                ShoppingListItem.category == ingredient.category
-            )
-        ).first()
-
-        if existing_item:
-            # Add to existing item
-            self._add_to_existing_item(existing_item, recipe, ingredient, unit_system)
-        else:
-            # Create new item
-            self._create_new_shopping_item(shopping_list, recipe, ingredient)
+        ingredient_name: str,
+        category: str
+    ) -> Optional[ShoppingListItem]:
+        key = self._item_key(ingredient_name, category)
+        for item in shopping_list.items:
+            if self._item_key(item.ingredient_name, item.category) == key:
+                return item
+        return None
 
     def _add_to_existing_item(
         self,
@@ -157,7 +171,7 @@ class ShoppingListService:
         shopping_list: ShoppingList,
         recipe: Recipe,
         ingredient: RecipeIngredient
-    ):
+    ) -> ShoppingListItem:
         """Create a new shopping list item"""
 
         # Create shopping list item with proper unit handling
@@ -183,6 +197,8 @@ class ShoppingListService:
             quantity=quantity_display
         )
         self.db.add(breakdown)
+
+        return item
 
     def _format_ingredient_display(self, amount: str, unit: str) -> str:
         """Format ingredient display, handling N/A units properly"""
@@ -372,13 +388,7 @@ class ShoppingListService:
         category = category or "pantry"
         unit_system = self._get_unit_system(user_id)
 
-        existing_item = self.db.query(ShoppingListItem).filter(
-            and_(
-                ShoppingListItem.shopping_list_id == shopping_list.id,
-                ShoppingListItem.ingredient_name == ingredient_name,
-                ShoppingListItem.category == category
-            )
-        ).first()
+        existing_item = self._find_matching_item(shopping_list, ingredient_name, category)
 
         if existing_item:
             metadata = dict(existing_item.consolidation_metadata or {})

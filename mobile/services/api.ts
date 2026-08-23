@@ -683,6 +683,28 @@ class APIService {
   }
 
   /**
+   * Remove a recipe's contribution from the shopping list. Ingredients shared
+   * with other recipes stay, with their quantities recalculated; manual items
+   * survive regardless.
+   */
+  async removeRecipeFromShoppingList(recipeId: string): Promise<ShoppingListResponse> {
+    const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/api/shopping-list/recipes/${recipeId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.detail || `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+        errorData.code
+      );
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Delete only the checked-off items from the shopping list
    */
   async clearCheckedItems(): Promise<ClearCheckedItemsResponse> {

@@ -464,7 +464,9 @@ class TestConsolidation:
         flour = next(i for i in result.items if i.ingredient_name == "Flour")
         assert flour.consolidated_display == "1.1 kg"
 
-    def test_weight_conversion_steps_to_lb_in_imperial(self, db_session, user_factory, recipe_factory):
+    def test_metric_sourced_weight_is_left_alone_for_an_imperial_user(self, db_session, user_factory, recipe_factory):
+        # Both recipes state grams, so the total stays in grams. Converting a
+        # self-consistent set to the user's preference only mangles it.
         imperial_user = user_factory(units="imperial")
         r1 = recipe_factory(owner=imperial_user, title="A", ingredients=[
             {"name": "Beef", "amount": "300", "unit": "g", "category": "butchery"},
@@ -476,9 +478,9 @@ class TestConsolidation:
         svc.add_recipe_to_shopping_list(imperial_user.id, r1.id)
         result = svc.add_recipe_to_shopping_list(imperial_user.id, r2.id)
         beef = next(i for i in result.items if i.ingredient_name == "Beef")
-        assert beef.consolidated_display.endswith("lb")
+        assert beef.consolidated_display == "600 g"
 
-    def test_volume_conversion_in_imperial_uses_cup(self, db_session, user_factory, recipe_factory):
+    def test_metric_sourced_volume_is_left_alone_for_an_imperial_user(self, db_session, user_factory, recipe_factory):
         imperial_user = user_factory(units="imperial")
         r1 = recipe_factory(owner=imperial_user, title="A", ingredients=[
             {"name": "Milk", "amount": "200", "unit": "ml", "category": "chilled"},
@@ -490,7 +492,134 @@ class TestConsolidation:
         svc.add_recipe_to_shopping_list(imperial_user.id, r1.id)
         result = svc.add_recipe_to_shopping_list(imperial_user.id, r2.id)
         milk = next(i for i in result.items if i.ingredient_name == "Milk")
-        assert milk.consolidated_display.endswith("cup")
+        assert milk.consolidated_display == "400 ml"
+
+    def test_mixed_unit_systems_fall_back_to_the_user_preference(self, db_session, user_factory, recipe_factory):
+        imperial_user = user_factory(units="imperial")
+        r1 = recipe_factory(owner=imperial_user, title="A", ingredients=[
+            {"name": "Beef", "amount": "200", "unit": "g", "category": "butchery"},
+        ])
+        r2 = recipe_factory(owner=imperial_user, title="B", ingredients=[
+            {"name": "Beef", "amount": "1", "unit": "lb", "category": "butchery"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(imperial_user.id, r1.id)
+        result = svc.add_recipe_to_shopping_list(imperial_user.id, r2.id)
+        beef = next(i for i in result.items if i.ingredient_name == "Beef")
+        assert beef.consolidated_display == "1 lb 7 oz"
+
+    def test_differently_spelled_ingredients_merge_into_one_row(self, db_session, user_factory, recipe_factory):
+        user = user_factory(units="metric")
+        r1 = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Chicken breast", "amount": "200", "unit": "g", "category": "butchery"},
+        ])
+        r2 = recipe_factory(owner=user, title="B", ingredients=[
+            {"name": "chicken breasts, diced", "amount": "300", "unit": "g", "category": "butchery"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(user.id, r1.id)
+        result = svc.add_recipe_to_shopping_list(user.id, r2.id)
+
+        chicken = [i for i in result.items if "hicken" in i.ingredient_name]
+        assert len(chicken) == 1
+        assert chicken[0].consolidated_display == "500 g"
+        # The first contributing recipe's spelling is what the user sees.
+        assert chicken[0].ingredient_name == "Chicken breast"
+        assert len(chicken[0].recipe_breakdown) == 2
+
+    def test_an_ingredient_listed_twice_in_one_recipe_merges(self, db_session, user_factory, recipe_factory):
+        # The second occurrence matches a row created moments earlier in the
+        # same loop — flushed but not yet committed.
+        user = user_factory(units="metric")
+        recipe = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Salt", "amount": "1", "unit": "tsp", "category": "spices"},
+            {"name": "salt", "amount": "2", "unit": "tsp", "category": "spices"},
+        ])
+        svc = ShoppingListService(db_session)
+        result = svc.add_recipe_to_shopping_list(user.id, recipe.id)
+
+        salt = [i for i in result.items if i.ingredient_name.lower() == "salt"]
+        assert len(salt) == 1
+        assert salt[0].consolidated_display == "3 tsp"
+
+    def test_distinct_products_are_not_merged(self, db_session, user_factory, recipe_factory):
+        user = user_factory(units="metric")
+        r1 = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Ground beef", "amount": "200", "unit": "g", "category": "butchery"},
+        ])
+        r2 = recipe_factory(owner=user, title="B", ingredients=[
+            {"name": "Beef", "amount": "300", "unit": "g", "category": "butchery"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(user.id, r1.id)
+        result = svc.add_recipe_to_shopping_list(user.id, r2.id)
+
+        assert len({i.ingredient_name for i in result.items}) == 2
+
+    def test_same_name_in_a_different_category_stays_separate(self, db_session, user_factory, recipe_factory):
+        user = user_factory(units="metric")
+        r1 = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Basil", "amount": "10", "unit": "g", "category": "produce"},
+        ])
+        r2 = recipe_factory(owner=user, title="B", ingredients=[
+            {"name": "Basil", "amount": "5", "unit": "g", "category": "spices"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(user.id, r1.id)
+        result = svc.add_recipe_to_shopping_list(user.id, r2.id)
+
+        assert len([i for i in result.items if i.ingredient_name == "Basil"]) == 2
+
+    def test_a_manual_item_merges_with_a_differently_spelled_recipe_ingredient(
+        self, db_session, user_factory, recipe_factory
+    ):
+        user = user_factory(units="metric")
+        recipe = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Tomato", "amount": "2", "unit": None, "category": "produce"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(user.id, recipe.id)
+        svc.add_manual_item(user.id, "Tomatoes", "3", "produce")
+
+        result = svc.get_shopping_list(user.id)
+        tomatoes = [i for i in result.items if "omato" in i.ingredient_name]
+        assert len(tomatoes) == 1
+
+    def test_items_come_back_in_a_stable_order(self, db_session, user_factory, recipe_factory):
+        # Without an explicit order_by, an UPDATE can move a row in the heap,
+        # so ticking an item off could reorder the list under the user.
+        user = user_factory(units="metric")
+        recipe = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Zucchini", "amount": "1", "unit": None, "category": "produce"},
+            {"name": "Apple", "amount": "2", "unit": None, "category": "produce"},
+            {"name": "Steak", "amount": "1", "unit": None, "category": "butchery"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(user.id, recipe.id)
+
+        before = [i.ingredient_name for i in svc.get_shopping_list(user.id).items]
+        # Grouped by category, then alphabetical within it.
+        assert before == ["Steak", "Apple", "Zucchini"]
+
+        apple = next(i for i in svc.get_shopping_list(user.id).items if i.ingredient_name == "Apple")
+        svc.update_item_status(user.id, int(apple.id), True)
+
+        after = [i.ingredient_name for i in svc.get_shopping_list(user.id).items]
+        assert after == before
+
+    def test_countable_ingredients_consolidate(self, db_session, user_factory, recipe_factory):
+        user = user_factory(units="metric")
+        r1 = recipe_factory(owner=user, title="A", ingredients=[
+            {"name": "Egg", "amount": "2", "unit": None, "category": "chilled"},
+        ])
+        r2 = recipe_factory(owner=user, title="B", ingredients=[
+            {"name": "Egg", "amount": "2", "unit": None, "category": "chilled"},
+        ])
+        svc = ShoppingListService(db_session)
+        svc.add_recipe_to_shopping_list(user.id, r1.id)
+        result = svc.add_recipe_to_shopping_list(user.id, r2.id)
+        egg = next(i for i in result.items if i.ingredient_name == "Egg")
+        assert egg.consolidated_display == "4"
 
     def test_fraction_quantities_are_parsed_and_summed(self, db_session, user_factory, recipe_factory):
         imperial_user = user_factory(units="imperial")

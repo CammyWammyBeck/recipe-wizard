@@ -18,9 +18,9 @@ Recipe Wizard is a cross-platform mobile application that generates personalized
 
 ### Advanced Features ✅ **IMPLEMENTED**
 - **Tab Navigation**: Intuitive bottom tab bar with four core sections
-- **Shopping List Management**: Dedicated tab with drag-to-reorder and smart categorization
+- **Shopping List Management**: Dedicated tab that consolidates ingredients across recipes, groups them by grocery category, and survives going offline mid-shop
 - **Profile Management**: Settings hub with dedicated detail screens for dietary restrictions, allergens, grocery categories, and AI personalization
-- **Measurement Units**: Metric/Imperial conversion support
+- **Measurement Units**: Metric/Imperial preference, applied when combining quantities that use different unit systems
 - **Dietary Restrictions**: Vegetarian, vegan, gluten-free, allergen management
 - **Recipe Customization**: Default servings, difficulty preferences
 - **Grocery Categories**: Customizable ingredient organization, reorderable by drag handle or arrow controls
@@ -314,7 +314,7 @@ Design mockups are available in the `design/examples/` folder.
 - [x] Enhanced recipe history with improved saved favorites section
 - [x] Comprehensive user profile and preferences management
 - [x] Advanced dietary restrictions and allergen management
-- [x] Measurement unit preferences (metric/imperial) with real-time conversion
+- [x] Measurement unit preferences (metric/imperial), used to reconcile mixed-unit shopping list totals
 - [x] Customizable grocery categories with drag-to-reorder (plus arrow controls for accessibility)
 - [x] AI personalization with additional preferences text input
 - [x] Recipe saving and unsaving with instant visual feedback

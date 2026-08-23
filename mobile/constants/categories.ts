@@ -45,3 +45,28 @@ export function getCategoryColor(category: string): string {
 export function getCategoryLabel(category: string): string {
   return category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ');
 }
+
+/**
+ * Order categories the way the user walks their supermarket.
+ *
+ * `preferredOrder` is the user's grocery-category preference (Profile →
+ * Categories, drag to reorder). Categories the user hasn't listed — a custom
+ * one, or something the model invented — sort alphabetically after the ones
+ * they have, so they're always reachable but never jump the queue.
+ */
+export function sortCategoriesByPreference(
+  categories: string[],
+  preferredOrder: string[]
+): string[] {
+  const rank = new Map(preferredOrder.map((category, index) => [category, index]));
+
+  return [...categories].sort((a, b) => {
+    const rankA = rank.get(a);
+    const rankB = rank.get(b);
+
+    if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+    if (rankA !== undefined) return -1;
+    if (rankB !== undefined) return 1;
+    return a.localeCompare(b);
+  });
+}
